@@ -8,8 +8,8 @@ int main(int argc, char** argv){
     FSM Finite_State_Machine(nh);
     //ros::AsyncSpinner spinner(12);
     Finite_State_Machine.build_ScheduleTable(
-            quad::STEADY,
-            quad::STAND,
+            // quad::STAND,
+            quad::LOCOMOTION,
 //            quad::WALK,
 //            quad::TROT,
 //           quad::PACE,
@@ -17,11 +17,12 @@ int main(int argc, char** argv){
             quad::END
             );
     //spinner.start();
+    //控制频率400hz
     while (ros::ok()) {
+        rate.sleep();
         Finite_State_Machine.loop();
         ros::spinOnce();
-        rate.sleep();
     }
-    //控制频率400hz
+
     return 0;
 }

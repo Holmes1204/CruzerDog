@@ -2,15 +2,14 @@
 
 Eigen::Matrix3d skew(Eigen::Vector3d vec);
 
-
 ConvexMPC::ConvexMPC(Eigen::VectorXd &_q_weights, Eigen::VectorXd &_r_weights)
 {
     this->mu = 0.3;
     // reserve size for sparse matrix
     this->Q_sparse = Eigen::SparseMatrix<double>(MPC_STATE_DIM * PLAN_HORIZON,
-                                                MPC_STATE_DIM * PLAN_HORIZON);
+                                                 MPC_STATE_DIM * PLAN_HORIZON);
     this->R_sparse = Eigen::SparseMatrix<double>(NUM_DOF * PLAN_HORIZON,
-                                                NUM_DOF * PLAN_HORIZON);
+                                                 NUM_DOF * PLAN_HORIZON);
     this->q_weights_mpc.resize(MPC_STATE_DIM * PLAN_HORIZON);
     this->r_weights_mpc.resize(NUM_DOF * PLAN_HORIZON);
 
@@ -55,8 +54,8 @@ ConvexMPC::ConvexMPC(Eigen::VectorXd &_q_weights, Eigen::VectorXd &_r_weights)
 
 ConvexMPC::~ConvexMPC()
 {
+    
 }
-
 
 /*! Update A_mat_c*/
 void ConvexMPC::Calculate_A_mat_c(Eigen::Vector3d _rpy)
@@ -90,6 +89,7 @@ void ConvexMPC::Calculate_B_mat_c(double _robot_mass, const Eigen::Matrix3d &_in
 }
 
 /*! State Space Discrete */
+//backwrad derivative
 void ConvexMPC::State_space_discrete(double _dt)
 {
     this->A_mat_d = Eigen::Matrix<double, MPC_STATE_DIM, MPC_STATE_DIM>::Identity() +
@@ -136,7 +136,7 @@ void ConvexMPC::Calculate_qp(FSM_data &data)
     // calculate gradient
     Eigen::Matrix<double, 13 * PLAN_HORIZON, 1> tmp_vec = this->A_qp * data.state->mpc_states;
     tmp_vec -= data.state->mpc_states_list;
-    this->gradient = (this->B_qp.transpose() * this->Q * tmp_vec).cast<double>();
+    this->gradient = this->B_qp.transpose() * this->Q * tmp_vec;
     this->fz_min = 0;
     this->fz_max = 180;
 
@@ -353,7 +353,7 @@ void Solver::generate_swing_legs_ctrl(FSM_data &data, double dt)
         foot_pos_error.block<3, 1>(0, i) = foot_pos_target.block<3, 1>(0, i) - foot_pos_cur.block<3, 1>(0, i);
         foot_vel_error.block<3, 1>(0, i) = foot_vel_target.block<3, 1>(0, i) - foot_vel_cur.block<3, 1>(0, i);
         data.state->foot_forces_swing.block<3, 1>(0, i) = foot_pos_error.block<3, 1>(0, i).cwiseProduct(data.state->kp_foot.block<3, 1>(0, i)) +
-                                                         foot_vel_error.block<3, 1>(0, i).cwiseProduct(data.state->kd_foot.block<3, 1>(0, i));
+                                                          foot_vel_error.block<3, 1>(0, i).cwiseProduct(data.state->kd_foot.block<3, 1>(0, i));
     }
 }
 
@@ -408,6 +408,7 @@ Eigen::Matrix<double, 3, NUM_LEG> Solver::Calculate_contact_force(FSM_data &data
 
     Eigen::Matrix<double, 3, NUM_LEG> foot_contact_force;
     Eigen::Vector3d rpy_error = data.state->command_rpy - data.state->cur_rpy;
+
     // limit euler error to pi/2
     if (rpy_error(2) > 3.1415926 * 1.5)
     {
@@ -417,6 +418,8 @@ Eigen::Matrix<double, 3, NUM_LEG> Solver::Calculate_contact_force(FSM_data &data
     {
         rpy_error(2) = data.state->command_rpy(2) + 3.1415926 * 2 - data.state->cur_rpy(2);
     }
+
+    //leg_control_type 0 : 不使用MPC，1：使用MPC
     if (data.state->leg_control_type == 0)
     {
         // no use
@@ -426,19 +429,19 @@ Eigen::Matrix<double, 3, NUM_LEG> Solver::Calculate_contact_force(FSM_data &data
         ConvexMPC mpc_solver = ConvexMPC(data.state->q_weights, data.state->r_weights);
         mpc_solver.Reset();
 
-        // initialize the mpc data.state at the first time step
+        // initialize the mpc data.state at the first time step，x[0]
         // data.state->mpc_states.resize(13);
         data.state->mpc_states << data.state->cur_rpy.x(), data.state->cur_rpy.y(), data.state->cur_rpy.z(),
             data.state->cur_position.x(), data.state->cur_position.y(), data.state->cur_position.z(),
             data.state->w_angle_vel.x(), data.state->w_angle_vel.y(), data.state->w_angle_vel.z(),
             data.state->cur_vel.x(), data.state->cur_vel.y(), data.state->cur_vel.z(),
             -9.8;
-        // std::cout << data.state->mpc_states << std::endl;
+        std::cout << data.state->mpc_states << std::endl;
         //  this should be roughly close to the average dt of main controller
         double mpc_dt;
         // if in gazebo
         mpc_dt = dt;
-
+        
         // initialize the desired mpc states trajectory
         for (int i = 0; i < PLAN_HORIZON; i++)
         {
@@ -459,6 +462,7 @@ Eigen::Matrix<double, 3, NUM_LEG> Solver::Calculate_contact_force(FSM_data &data
 
         // a single A_mat_c is computed for the entire reference trajectory
         mpc_solver.Calculate_A_mat_c(data.state->cur_rpy);
+        //std::cout<<mpc_solver.A_mat_c<<std::endl;
         // for each point in the reference trajectory, an approximate B_c matrix is computed using desired values of euler angles and feet positions
         // from the reference trajectory and foot placement controller
         for (int i = 0; i < PLAN_HORIZON; i++)
@@ -469,6 +473,7 @@ Eigen::Matrix<double, 3, NUM_LEG> Solver::Calculate_contact_force(FSM_data &data
                                          data.state->inertia_tensor,
                                          data.state->rotate_matrix,
                                          data.state->foot_p_abs);
+            //std::cout<<mpc_solver.A_mat_c<<std::endl;
             // data.state space Discretization
             mpc_solver.State_space_discrete(mpc_dt);
 
@@ -486,12 +491,20 @@ Eigen::Matrix<double, 3, NUM_LEG> Solver::Calculate_contact_force(FSM_data &data
             solver.settings()->setWarmStart(true);
             // Set the initial data of the QP solver
             solver.data()->setNumberOfVariables(NUM_DOF * PLAN_HORIZON);
+
             solver.data()->setNumberOfConstraints(MPC_CONSTRAINT_DIM * PLAN_HORIZON);
+
             solver.data()->setLinearConstraintsMatrix(mpc_solver.linear_constraints);
             solver.data()->setHessianMatrix(mpc_solver.hessian);
             solver.data()->setGradient(mpc_solver.gradient);
+
             solver.data()->setLowerBound(mpc_solver.lb);
             solver.data()->setUpperBound(mpc_solver.ub);
+            //std::cout<<"constraint"<<std::endl<<mpc_solver.linear_constraints<<std::endl;
+            // std::cout<<"Hessian"<<std::endl<<mpc_solver.hessian<<std::endl;
+            // std::cout<<"gradient"<<std::endl<<mpc_solver.gradient<<std::endl;
+            //std::cout<<"lb"<<std::endl<<mpc_solver.lb.transpose()<<std::endl;
+            //std::cout<<"ub"<<std::endl<<mpc_solver.ub.transpose()<<std::endl;
             solver.initSolver();
             printf("initialize QP !\n");
         }
@@ -505,8 +518,9 @@ Eigen::Matrix<double, 3, NUM_LEG> Solver::Calculate_contact_force(FSM_data &data
 
         // solver.solve();
         solver.solveProblem();
+        
         // Get Solution
-        Eigen::VectorXd solution = solver.getSolution().cast<double>();
+        Eigen::VectorXd solution = solver.getSolution();
 
         for (int i = 0; i < NUM_LEG; i++)
         {
@@ -517,5 +531,6 @@ Eigen::Matrix<double, 3, NUM_LEG> Solver::Calculate_contact_force(FSM_data &data
         }
         //            std::cout << data.state->foot_contact_force << std::endl;
     }
+
     return foot_contact_force;
 }

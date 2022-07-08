@@ -37,6 +37,8 @@ add_executable( main_ctrl
         src/FSM/State_Worker/Stand_Worker.cpp
         src/FSM/State_Worker/Steady_Worker.cpp
         src/FSM/State_Worker/Locomotion_Worker.cpp
+        src/Leg_Control/Foot_Swing_Trajectory.cpp
+        src/Leg_Control/Gait.cpp
         src/Robot/Robot.cpp
         src/Robot/KinematicModel.cpp
         src/Robot/LegKinematics_unitree.cpp

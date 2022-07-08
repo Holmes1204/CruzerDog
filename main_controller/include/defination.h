@@ -11,6 +11,7 @@ namespace quad{
         STOP,
         INIT,
         STAND,
+        LOCOMOTION,
         WALK,
         TROT,
         PACE,

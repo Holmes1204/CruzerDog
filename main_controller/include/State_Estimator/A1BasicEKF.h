@@ -15,30 +15,51 @@
 #define SENSOR_NOISE_ZFOOT 0.001
 
 using namespace quad;
+
+struct StateEstimateResult {
+    EIGEN_MAKE_ALIGNED_OPERATOR_NEW
+  Eigen::Vector4<double> contactEstimate;
+  Eigen::Vector3<double> position;
+  Eigen::Vector3<double> vBody;
+  Eigen::Quaternion<double> orientation;
+  Eigen::Vector3<double> omegaBody;
+  Eigen::Matrix3<double> rBody;
+  Eigen::Vector3<double> rpy;
+  Eigen::Vector3<double> omegaWorld;
+  Eigen::Vector3<double> vWorld;
+  Eigen::Vector3<double> aBody, aWorld;
+};
+
 class FSM_data;
 
 // implement a basic error state KF to estimate robot pose
 // assume orientation is known from a IMU (state.root_rot_mat)
-class A1BasicEKF {
+class A1BasicEKF
+{
 public:
-    A1BasicEKF ();
+    EIGEN_MAKE_ALIGNED_OPERATOR_NEW
+    A1BasicEKF();
 
-    A1BasicEKF (bool assume_flat_ground_);
-    void init_state(FSM_data& data);
-    void update_estimation(FSM_data& data, double dt);
-    bool is_inited() {return filter_initialized;}
+    A1BasicEKF(bool assume_flat_ground_);
+    void init_state(FSM_data &data);
+    void update_estimation(FSM_data &data, double dt);
+    bool is_inited() { return filter_initialized; }
+    StateEstimateResult& getResult(){return this->result;}
 
 private:
+
+    StateEstimateResult result;
     bool filter_initialized = false;
     // state
     // 0 1 2 pos 3 4 5 vel 6 7 8 foot pos FL 9 10 11 foot pos FR 12 13 14 foot pos RL 15 16 17 foot pos RR
-    Eigen::Matrix<double, STATE_SIZE, 1> x; // estimation state
-    Eigen::Matrix<double, STATE_SIZE, 1> xbar; // estimation state after process update
-    Eigen::Matrix<double, STATE_SIZE, STATE_SIZE> P; // estimation state covariance
+
+    Eigen::Matrix<double, STATE_SIZE, 1> x;             // estimation state
+    Eigen::Matrix<double, STATE_SIZE, 1> xbar;          // estimation state after process update
+    Eigen::Matrix<double, STATE_SIZE, STATE_SIZE> P;    // estimation state covariance
     Eigen::Matrix<double, STATE_SIZE, STATE_SIZE> Pbar; // estimation state covariance after process update
-    Eigen::Matrix<double, STATE_SIZE, STATE_SIZE> A; // estimation state transition
-    Eigen::Matrix<double, STATE_SIZE, 3> B; // estimation state transition
-    Eigen::Matrix<double, STATE_SIZE, STATE_SIZE> Q; // estimation state transition noise
+    Eigen::Matrix<double, STATE_SIZE, STATE_SIZE> A;    // estimation state transition
+    Eigen::Matrix<double, STATE_SIZE, 3> B;             // estimation state transition
+    Eigen::Matrix<double, STATE_SIZE, STATE_SIZE> Q;    // estimation state transition noise
 
     // observation
     // 0 1 2   FL pos residual
@@ -50,25 +71,26 @@ private:
     // 18 19 20 vel residual from RL
     // 21 22 23 vel residual from RR
     // 24 25 26 27 foot height
-    Eigen::Matrix<double, MEAS_SIZE, 1> y; //  observation
-    Eigen::Matrix<double, MEAS_SIZE, 1> yhat; // estimated observation
-    Eigen::Matrix<double, MEAS_SIZE, 1> error_y; // estimated observation
-    Eigen::Matrix<double, MEAS_SIZE, 1> Serror_y; // S^-1*error_y
-    Eigen::Matrix<double, MEAS_SIZE, STATE_SIZE> C; // estimation state observation
+    Eigen::Matrix<double, MEAS_SIZE, 1> y;           //  observation
+    Eigen::Matrix<double, MEAS_SIZE, 1> yhat;        // estimated observation
+    Eigen::Matrix<double, MEAS_SIZE, 1> error_y;     // estimated observation
+    Eigen::Matrix<double, MEAS_SIZE, 1> Serror_y;    // S^-1*error_y
+    Eigen::Matrix<double, MEAS_SIZE, STATE_SIZE> C;  // estimation state observation
     Eigen::Matrix<double, MEAS_SIZE, STATE_SIZE> SC; // S^-1*C
-    Eigen::Matrix<double, MEAS_SIZE, MEAS_SIZE> R; // estimation state observation noise
+    Eigen::Matrix<double, MEAS_SIZE, MEAS_SIZE> R;   // estimation state observation noise
     // helper matrices
-    Eigen::Matrix<double, 3, 3> eye3; // 3x3 identity
-    Eigen::Matrix<double, MEAS_SIZE, MEAS_SIZE> S; // Innovation (or pre-fit residual) covariance
+    Eigen::Matrix<double, 3, 3> eye3;               // 3x3 identity
+    Eigen::Matrix<double, MEAS_SIZE, MEAS_SIZE> S;  // Innovation (or pre-fit residual) covariance
     Eigen::Matrix<double, STATE_SIZE, MEAS_SIZE> K; // kalman gain
-
 
     bool assume_flat_ground = false;
     // variables to process foot force
     double smooth_foot_force[4];
     double estimated_contacts[4];
+
 };
+
 
 class A1BasicEKF;
 
-#endif //A1_CPP_A1BASICEKF_H
+#endif // A1_CPP_A1BASICEKF_H

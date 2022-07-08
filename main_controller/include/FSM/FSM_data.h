@@ -3,10 +3,13 @@
 #include <ros/ros.h>
 #include <eigen3/Eigen/Dense>
 #include <defination.h>
-#include <Robot/KinematicModel.h>
+#include <Robot/Robot.h>
 #include <Convex_MPC/ConvexMPC.h>
+#include <Robot/Robot.h>
 #include <State_Estimator/A1BasicEKF.h>
-
+#include <unitree_legged_msgs/MotorCmd.h>
+#include <unitree_legged_msgs/LowCmd.h>
+#include <unitree_legged_msgs/LowState.h>
 
 using namespace quad;
 
@@ -14,7 +17,9 @@ class state_data;
 class FSM_data;
 class A1BasicEKF;
 class Solver;
+class LegController;
 
+class Robot;
 
 class state_data
 {
@@ -61,6 +66,7 @@ public:
     Eigen::Matrix3d rotate_matrix_z;
 
     /*! Leg Controller Parameters */
+    
     Eigen::Vector4f foot_force;
     Eigen::Matrix<double, 3, NUM_LEG> foot_forces_swing;
     Eigen::Matrix<double, 3, NUM_LEG> foot_contact_force;
@@ -142,17 +148,18 @@ public:
     //wtr_serial_msg::em_ev mt_cmd;
     //wtr_serial_msg::em_fb_raw mt_fdb;
     //Leg_Data leg[4];
-    //Robot* _quadruped;
+
     //GaitScheduler* _gaitScheduler;
     //RobotControlParameters* controlParameters;
     //VisualizationData* visualizationData;
     //DesiredStateCommand<T>* _desiredStateCommand;
     //LegController<T>* _legController;
+    LegController* _legController;
     state_data* state;
     A1BasicEKF* model_StateEstimate;
-    //LegController* model_LegController = new LegController();
+    LegController* model_LegController;
     Solver* mpc_solver;
-
+    Robot* _quadruped;
     FSM_data();
     ~FSM_data();
 };

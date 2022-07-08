@@ -1,7 +1,5 @@
 #include <FSM/FSM_data.h>
 
-
-
 FSM_data::FSM_data()
 {
     state = new state_data();
@@ -9,7 +7,9 @@ FSM_data::FSM_data()
     state->Reset();
     model_StateEstimate = new A1BasicEKF();
     mpc_solver = new Solver();
-    mpc_solver->InitParams();
+    model_LegController = new LegController();
+    _quadruped  = new Robot();
+    _legController = new LegController();
 }
 
 FSM_data::~FSM_data()
@@ -26,6 +26,7 @@ state_data::state_data()
 
 state_data::~state_data()
 {
+
 
 }
 
