@@ -21,7 +21,6 @@ public:
     void build_ScheduleTable(int Schedule, ...);
     void Update_MPC();
     void Update_StateEstimate();
-    void Send_CMD();
     void Update_LegController();
 };
 #endif

@@ -3,23 +3,102 @@
 
 FSM_topic_control::FSM_topic_control(ros::NodeHandle &nh, FSM_data &data) : nh_(nh), data_(data)
 {
+        this->joy_sub_ = this->joy_sub_ = this->nh_.subscribe("/joy", 2, &FSM_topic_control::Joy_Callback, this);
+        this->em_cmd_pub_ = this->nh_.advertise<wtr_serial_msg::em_ev>("/em_ev", 1);
+        this->em_fdb_sub_ = this->nh_.subscribe("/em_fb_raw", 2, &FSM_topic_control::em_fdb_callback, this);
         unitree_sim_set_up();
 }
 
 FSM_topic_control::~FSM_topic_control()
 {
-
-        // real_world
+        
 }
+
+// joy_control
+void FSM_topic_control::Joy_Callback(const sensor_msgs::Joy &msg)
+{
+        this->data_.state->command_vel.x() = msg.axes[4] * JOY_CMD_VELX_MAX;
+        this->data_.state->command_vel.y() = msg.axes[3] * JOY_CMD_VELY_MAX;
+        this->data_.state->command_vel.z() = 0;
+        // Debug
+        system("clear");
+        std::cout << "v_x" << this->data_.state->command_vel.x() << std::endl
+                  << "v_y" << this->data_.state->command_vel.y() << std::endl;
+}
+// real
+void FSM_topic_control::em_fdb_callback(const wtr_serial_msg::em_fb_raw &msg)
+{
+        // std::cout<<"--------------------\n";
+        for (int leg = 0; leg < 4; leg++)
+        {
+                //未考虑电机开始时的偏置，之后添加
+                data_._legController->data[leg].q(0) = 0;
+                data_._legController->data[leg].qd(0) = 0;
+
+                data_._legController->data[leg].q(1) = mt_fdb.em_pos_fb_raw[leg * 2];
+                data_._legController->data[leg].qd(1) = mt_fdb.em_vel_fb_raw[leg * 2];
+
+                data_._legController->data[leg].q(2) = mt_fdb.em_pos_fb_raw[leg * 2 + 1];
+                data_._legController->data[leg].qd(2) = mt_fdb.em_vel_fb_raw[leg * 2 + 1];
+                // leg[leg].compute_Jacobian(leg);
+                // leg[leg].get_foot_pos(leg);
+                // leg[leg].get_foot_vel();
+                // debug
+                // std::cout<<"leg"<<leg<<std::endl;
+                // std::cout<<leg[leg].J<<std::endl;
+                // std::cout<<"q "<<leg[leg].q.transpose()<<"\n"<<"d "<<leg[leg].qd.transpose()<<std::endl;
+                // std::cout<<"p "<<leg[leg].p.transpose()<<"\n"<<"v "<<leg[leg].v.transpose()<<std::endl;
+        }
+        return;
+}
+
 void FSM_topic_control::em_cmd_send()
 {
+        for (int leg = 0; leg < 4; leg++)
+        {
+                // tauFF
+                Eigen::Vector3d legTorque = data_._legController->command[leg].tau_FF;
+                // forceFF
+                Eigen::Vector3d footForce = data_._legController->command[leg].force_FF;
+                // cartesian PD
+                footForce +=
+                    data_._legController->command[leg].kpCartesian *
+                    (data_._legController->command[leg].p_Des - data_._legController->data[leg].p);
+                footForce +=
+                    data_._legController->command[leg].kdCartesian *
+                    (data_._legController->command[leg].v_Des - data_._legController->data[leg].v);
+                // Torque
+                legTorque += data_._legController->data[leg].J.transpose() * footForce;
+                // estimate torque
+                data_._legController->data[leg].tauEstimate =
+                    legTorque +
+                    data_._legController->command[leg].kpJoint *
+                        (data_._legController->command[leg].q_Des - data_._legController->data[leg].q) +
+                    data_._legController->command[leg].kdJoint *
+                        (data_._legController->command[leg].qd_Des - data_._legController->data[leg].qd);
+
+                mt_cmd.em_ev_pos[2 * leg] = data_._legController->command[leg].q_Des(1);
+                mt_cmd.em_ev_vel[2 * leg] = data_._legController->command[leg].qd_Des(1);
+                mt_cmd.em_ev_kp[2 * leg] = data_._legController->command[leg].kpJoint(1, 1);
+                mt_cmd.em_ev_kd[2 * leg] = data_._legController->command[leg].kdJoint(1, 1);
+                mt_cmd.em_ev_trq[2 * leg] = legTorque(1);
+
+                mt_cmd.em_ev_pos[2 * leg + 1] = data_._legController->command[leg].q_Des(2);
+                mt_cmd.em_ev_vel[2 * leg + 1] = data_._legController->command[leg].qd_Des(2);
+                mt_cmd.em_ev_kp[2 * leg + 1] = data_._legController->command[leg].kpJoint(2, 2);
+                mt_cmd.em_ev_kd[2 * leg + 1] = data_._legController->command[leg].kdJoint(2, 2);
+                mt_cmd.em_ev_trq[2 * leg + 1] = legTorque(2);
+                // on or off
+                mt_cmd.em_state[0] = 0;
+                mt_cmd.em_state[1] = 0;
+        }
+        em_cmd_pub_.publish(mt_cmd);
         return;
 }
 
 // unitree_sim
 void FSM_topic_control::unitree_sim_set_up()
 {
-
         // joint publisher
         this->joint_sim_unitree_pub[0] = this->nh_.advertise<unitree_legged_msgs::MotorCmd>("/a1_gazebo/FL_hip_controller/command", 1);
         this->joint_sim_unitree_pub[1] = this->nh_.advertise<unitree_legged_msgs::MotorCmd>("/a1_gazebo/FL_thigh_controller/command", 1);
@@ -55,57 +134,49 @@ void FSM_topic_control::unitree_sim_set_up()
 
 void FSM_topic_control::unitree_sim_send_cmd()
 {
-        // send control cmd to robot via ros topic
-        for (int i = 0; i < 4; i++)
+        for (int leg = 0; leg < 4; leg++)
         {
-                if (1)
-                {
-                        /*! Position Control Without MPC */
-                        low_cmd.motorCmd[3 * i].mode = 0x0A;
-                        low_cmd.motorCmd[3 * i].q = 0;
-                        low_cmd.motorCmd[3 * i].dq = 0;
-                        low_cmd.motorCmd[3 * i].Kp = 70;
-                        low_cmd.motorCmd[3 * i].Kd = 3;
-                        low_cmd.motorCmd[3 * i].tau = 0;
+                // tauFF
+                Eigen::Vector3d legTorque = data_._legController->command[leg].tau_FF;
+                // forceFF
+                Eigen::Vector3d footForce = data_._legController->command[leg].force_FF;
+                // cartesian PD
+                footForce +=
+                    data_._legController->command[leg].kpCartesian *
+                    (data_._legController->command[leg].p_Des - data_._legController->data[leg].p);
+                footForce +=
+                    data_._legController->command[leg].kdCartesian *
+                    (data_._legController->command[leg].v_Des - data_._legController->data[leg].v);
+                // Torque
+                legTorque += data_._legController->data[leg].J.transpose() * footForce;
+                // estimate torque
+                data_._legController->data[leg].tauEstimate =
+                    legTorque +
+                    data_._legController->command[leg].kpJoint *
+                        (data_._legController->command[leg].q_Des - data_._legController->data[leg].q) +
+                    data_._legController->command[leg].kdJoint *
+                        (data_._legController->command[leg].qd_Des - data_._legController->data[leg].qd);
 
-                        low_cmd.motorCmd[3 * i + 1].mode = 0x0A;
-                        // low_cmd.motorCmd[3*i+1].q = 0;
-                        low_cmd.motorCmd[3 * i + 1].dq = 0;
-                        low_cmd.motorCmd[3 * i + 1].Kp = 180;
-                        low_cmd.motorCmd[3 * i + 1].Kd = 8;
-                        low_cmd.motorCmd[3 * i + 1].tau = 0;
+                low_cmd.motorCmd[3 * leg].mode = 0x0A;
+                low_cmd.motorCmd[3 * leg].q = data_._legController->command[leg].q_Des(0);
+                low_cmd.motorCmd[3 * leg].dq = data_._legController->command[leg].qd_Des(0);
+                low_cmd.motorCmd[3 * leg].Kp = data_._legController->command[leg].kpJoint(0, 0);
+                low_cmd.motorCmd[3 * leg].Kd = data_._legController->command[leg].kpJoint(0, 0);
+                low_cmd.motorCmd[3 * leg].tau = legTorque(0);
 
-                        low_cmd.motorCmd[3 * i + 2].mode = 0x0A;
-                        // low_cmd.motorCmd[3*i+2].q = 0;
-                        low_cmd.motorCmd[3 * i + 2].dq = 0;
-                        low_cmd.motorCmd[3 * i + 2].Kp = 300;
-                        low_cmd.motorCmd[3 * i + 2].Kd = 15;
-                        low_cmd.motorCmd[3 * i + 2].tau = 0;
-                }
-                else
-                {
-                        /*! MPC Torques Control */
-                        low_cmd.motorCmd[3 * i].mode = 0x0A;
-                        low_cmd.motorCmd[3 * i].q = 0;
-                        low_cmd.motorCmd[3 * i].dq = 0;
-                        low_cmd.motorCmd[3 * i].Kp = 0;
-                        low_cmd.motorCmd[3 * i].Kd = 0;
-                        low_cmd.motorCmd[3 * i].tau = 0;
+                low_cmd.motorCmd[3 * leg + 1].mode = 0x0A;
+                low_cmd.motorCmd[3 * leg + 1].q = data_._legController->command[leg].q_Des(1);
+                low_cmd.motorCmd[3 * leg + 1].dq = data_._legController->command[leg].qd_Des(1);
+                low_cmd.motorCmd[3 * leg + 1].Kp = data_._legController->command[leg].kpJoint(1, 1);
+                low_cmd.motorCmd[3 * leg + 1].Kd = data_._legController->command[leg].kdJoint(1, 1);
+                low_cmd.motorCmd[3 * leg + 1].tau = legTorque(1);
 
-                        low_cmd.motorCmd[3 * i + 1].mode = 0x0A;
-                        low_cmd.motorCmd[3 * i + 1].q = 0;
-                        low_cmd.motorCmd[3 * i + 1].dq = 0;
-                        low_cmd.motorCmd[3 * i + 1].Kp = 0;
-                        low_cmd.motorCmd[3 * i + 1].Kd = 0;
-                        low_cmd.motorCmd[3 * i + 1].tau = 0;
-
-                        low_cmd.motorCmd[3 * i + 2].mode = 0x0A;
-                        low_cmd.motorCmd[3 * i + 2].q = 0;
-                        low_cmd.motorCmd[3 * i + 2].dq = 0;
-                        low_cmd.motorCmd[3 * i + 2].Kp = 0;
-                        low_cmd.motorCmd[3 * i + 2].Kd = 0;
-                        low_cmd.motorCmd[3 * i + 2].tau = 0;
-                }
+                low_cmd.motorCmd[3 * leg + 2].mode = 0x0A;
+                low_cmd.motorCmd[3 * leg + 2].q = data_._legController->command[leg].q_Des(2);
+                low_cmd.motorCmd[3 * leg + 2].dq = data_._legController->command[leg].qd_Des(2);
+                low_cmd.motorCmd[3 * leg + 2].Kp = data_._legController->command[leg].kpJoint(2, 2);
+                low_cmd.motorCmd[3 * leg + 2].Kd = data_._legController->command[leg].kdJoint(2, 2);
+                low_cmd.motorCmd[3 * leg + 2].tau = legTorque(2);
         }
 
         for (int i = 0; i < 12; i++)
@@ -116,150 +187,150 @@ void FSM_topic_control::unitree_sim_send_cmd()
 
 void FSM_topic_control::FL_hip_state_callback(const unitree_legged_msgs::MotorState &msg)
 {
-        lowState.motorState[0].mode = msg.mode;
-        lowState.motorState[0].q = msg.q;
-        lowState.motorState[0].dq = msg.dq;
-        lowState.motorState[0].tauEst = msg.tauEst;
-        //std::cout << 0 << std::endl;
+        low_state.motorState[0].mode = msg.mode;
+        low_state.motorState[0].q = msg.q;
+        low_state.motorState[0].dq = msg.dq;
+        low_state.motorState[0].tauEst = msg.tauEst;
+        // std::cout << 0 << std::endl;
 }
 void FSM_topic_control::FL_thigh_state_callback(const unitree_legged_msgs::MotorState &msg)
 {
-        lowState.motorState[1].mode = msg.mode;
-        lowState.motorState[1].q = msg.q;
-        lowState.motorState[1].dq = msg.dq;
-        lowState.motorState[1].tauEst = msg.tauEst;
-        //std::cout << 1 << std::endl;
+        low_state.motorState[1].mode = msg.mode;
+        low_state.motorState[1].q = msg.q;
+        low_state.motorState[1].dq = msg.dq;
+        low_state.motorState[1].tauEst = msg.tauEst;
+        // std::cout << 1 << std::endl;
 }
 void FSM_topic_control::FL_calf_state_callback(const unitree_legged_msgs::MotorState &msg)
 {
-        lowState.motorState[2].mode = msg.mode;
-        lowState.motorState[2].q = msg.q;
-        lowState.motorState[2].dq = msg.dq;
-        lowState.motorState[2].tauEst = msg.tauEst;
-        //std::cout << 2 << std::endl;
+        low_state.motorState[2].mode = msg.mode;
+        low_state.motorState[2].q = msg.q;
+        low_state.motorState[2].dq = msg.dq;
+        low_state.motorState[2].tauEst = msg.tauEst;
+        // std::cout << 2 << std::endl;
 }
 
 // FR
 void FSM_topic_control::FR_hip_state_callback(const unitree_legged_msgs::MotorState &msg)
 {
-        lowState.motorState[3].mode = msg.mode;
-        lowState.motorState[3].q = msg.q;
-        lowState.motorState[3].dq = msg.dq;
-        lowState.motorState[3].tauEst = msg.tauEst;
-        //std::cout << 3 << std::endl;
+        low_state.motorState[3].mode = msg.mode;
+        low_state.motorState[3].q = msg.q;
+        low_state.motorState[3].dq = msg.dq;
+        low_state.motorState[3].tauEst = msg.tauEst;
+        // std::cout << 3 << std::endl;
 }
 void FSM_topic_control::FR_thigh_state_callback(const unitree_legged_msgs::MotorState &msg)
 {
-        lowState.motorState[4].mode = msg.mode;
-        lowState.motorState[4].q = msg.q;
-        lowState.motorState[4].dq = msg.dq;
-        lowState.motorState[4].tauEst = msg.tauEst;
-        //std::cout << 4 << std::endl;
+        low_state.motorState[4].mode = msg.mode;
+        low_state.motorState[4].q = msg.q;
+        low_state.motorState[4].dq = msg.dq;
+        low_state.motorState[4].tauEst = msg.tauEst;
+        // std::cout << 4 << std::endl;
 }
 void FSM_topic_control::FR_calf_state_callback(const unitree_legged_msgs::MotorState &msg)
 {
-        lowState.motorState[5].mode = msg.mode;
-        lowState.motorState[5].q = msg.q;
-        lowState.motorState[5].dq = msg.dq;
-        lowState.motorState[5].tauEst = msg.tauEst;
-        //std::cout << 5 << std::endl;
+        low_state.motorState[5].mode = msg.mode;
+        low_state.motorState[5].q = msg.q;
+        low_state.motorState[5].dq = msg.dq;
+        low_state.motorState[5].tauEst = msg.tauEst;
+        // std::cout << 5 << std::endl;
 }
 
 // RL
 void FSM_topic_control::RL_hip_state_callback(const unitree_legged_msgs::MotorState &msg)
 {
-        lowState.motorState[6].mode = msg.mode;
-        lowState.motorState[6].q = msg.q;
-        lowState.motorState[6].dq = msg.dq;
-        lowState.motorState[6].tauEst = msg.tauEst;
-        //std::cout << 6 << std::endl;
+        low_state.motorState[6].mode = msg.mode;
+        low_state.motorState[6].q = msg.q;
+        low_state.motorState[6].dq = msg.dq;
+        low_state.motorState[6].tauEst = msg.tauEst;
+        // std::cout << 6 << std::endl;
 }
 void FSM_topic_control::RL_thigh_state_callback(const unitree_legged_msgs::MotorState &msg)
 {
-        lowState.motorState[7].mode = msg.mode;
-        lowState.motorState[7].q = msg.q;
-        lowState.motorState[7].dq = msg.dq;
-        lowState.motorState[7].tauEst = msg.tauEst;
-        //std::cout << 7 << std::endl;
+        low_state.motorState[7].mode = msg.mode;
+        low_state.motorState[7].q = msg.q;
+        low_state.motorState[7].dq = msg.dq;
+        low_state.motorState[7].tauEst = msg.tauEst;
+        // std::cout << 7 << std::endl;
 }
 void FSM_topic_control::RL_calf_state_callback(const unitree_legged_msgs::MotorState &msg)
 {
-        lowState.motorState[8].mode = msg.mode;
-        lowState.motorState[8].q = msg.q;
-        lowState.motorState[8].dq = msg.dq;
-        lowState.motorState[8].tauEst = msg.tauEst;
-        //std::cout << 8 << std::endl;
+        low_state.motorState[8].mode = msg.mode;
+        low_state.motorState[8].q = msg.q;
+        low_state.motorState[8].dq = msg.dq;
+        low_state.motorState[8].tauEst = msg.tauEst;
+        // std::cout << 8 << std::endl;
 }
 
 // RR
 void FSM_topic_control::RR_hip_state_callback(const unitree_legged_msgs::MotorState &msg)
 {
-        lowState.motorState[9].mode = msg.mode;
-        lowState.motorState[9].q = msg.q;
-        lowState.motorState[9].dq = msg.dq;
-        lowState.motorState[9].tauEst = msg.tauEst;
-        //std::cout << 9 << std::endl;
+        low_state.motorState[9].mode = msg.mode;
+        low_state.motorState[9].q = msg.q;
+        low_state.motorState[9].dq = msg.dq;
+        low_state.motorState[9].tauEst = msg.tauEst;
+        // std::cout << 9 << std::endl;
 }
 void FSM_topic_control::RR_thigh_state_callback(const unitree_legged_msgs::MotorState &msg)
 {
-        lowState.motorState[10].mode = msg.mode;
-        lowState.motorState[10].q = msg.q;
-        lowState.motorState[10].dq = msg.dq;
-        lowState.motorState[10].tauEst = msg.tauEst;
-        //std::cout << 10 << std::endl;
+        low_state.motorState[10].mode = msg.mode;
+        low_state.motorState[10].q = msg.q;
+        low_state.motorState[10].dq = msg.dq;
+        low_state.motorState[10].tauEst = msg.tauEst;
+        // std::cout << 10 << std::endl;
 }
 void FSM_topic_control::RR_calf_state_callback(const unitree_legged_msgs::MotorState &msg)
 {
-        lowState.motorState[11].mode = msg.mode;
-        lowState.motorState[11].q = msg.q;
-        lowState.motorState[11].dq = msg.dq;
-        lowState.motorState[11].tauEst = msg.tauEst;
-        //std::cout << 11 << std::endl;
+        low_state.motorState[11].mode = msg.mode;
+        low_state.motorState[11].q = msg.q;
+        low_state.motorState[11].dq = msg.dq;
+        low_state.motorState[11].tauEst = msg.tauEst;
+        // std::cout << 11 << std::endl;
 }
 
 void FSM_topic_control::Imu_Callback(const sensor_msgs::Imu &msg)
 {
-        lowState.imu.quaternion[0] = msg.orientation.w;
-        lowState.imu.quaternion[1] = msg.orientation.x;
-        lowState.imu.quaternion[2] = msg.orientation.y;
-        lowState.imu.quaternion[3] = msg.orientation.z;
+        low_state.imu.quaternion[0] = msg.orientation.w;
+        low_state.imu.quaternion[1] = msg.orientation.x;
+        low_state.imu.quaternion[2] = msg.orientation.y;
+        low_state.imu.quaternion[3] = msg.orientation.z;
 
-        lowState.imu.gyroscope[0] = msg.angular_velocity.x;
-        lowState.imu.gyroscope[1] = msg.angular_velocity.y;
-        lowState.imu.gyroscope[2] = msg.angular_velocity.z;
+        low_state.imu.gyroscope[0] = msg.angular_velocity.x;
+        low_state.imu.gyroscope[1] = msg.angular_velocity.y;
+        low_state.imu.gyroscope[2] = msg.angular_velocity.z;
 
-        lowState.imu.accelerometer[0] = msg.linear_acceleration.x;
-        lowState.imu.accelerometer[1] = msg.linear_acceleration.y;
-        lowState.imu.accelerometer[2] = msg.linear_acceleration.z;
+        low_state.imu.accelerometer[0] = msg.linear_acceleration.x;
+        low_state.imu.accelerometer[1] = msg.linear_acceleration.y;
+        low_state.imu.accelerometer[2] = msg.linear_acceleration.z;
 }
 void FSM_topic_control::FRfootCallback(const geometry_msgs::WrenchStamped &msg)
 {
-        lowState.eeForce[0].x = msg.wrench.force.x;
-        lowState.eeForce[0].y = msg.wrench.force.y;
-        lowState.eeForce[0].z = msg.wrench.force.z;
-        lowState.footForce[0] = msg.wrench.force.z;
+        low_state.eeForce[0].x = msg.wrench.force.x;
+        low_state.eeForce[0].y = msg.wrench.force.y;
+        low_state.eeForce[0].z = msg.wrench.force.z;
+        low_state.footForce[0] = msg.wrench.force.z;
 }
 
 void FSM_topic_control::FLfootCallback(const geometry_msgs::WrenchStamped &msg)
 {
-        lowState.eeForce[1].x = msg.wrench.force.x;
-        lowState.eeForce[1].y = msg.wrench.force.y;
-        lowState.eeForce[1].z = msg.wrench.force.z;
-        lowState.footForce[1] = msg.wrench.force.z;
+        low_state.eeForce[1].x = msg.wrench.force.x;
+        low_state.eeForce[1].y = msg.wrench.force.y;
+        low_state.eeForce[1].z = msg.wrench.force.z;
+        low_state.footForce[1] = msg.wrench.force.z;
 }
 
 void FSM_topic_control::RRfootCallback(const geometry_msgs::WrenchStamped &msg)
 {
-        lowState.eeForce[2].x = msg.wrench.force.x;
-        lowState.eeForce[2].y = msg.wrench.force.y;
-        lowState.eeForce[2].z = msg.wrench.force.z;
-        lowState.footForce[2] = msg.wrench.force.z;
+        low_state.eeForce[2].x = msg.wrench.force.x;
+        low_state.eeForce[2].y = msg.wrench.force.y;
+        low_state.eeForce[2].z = msg.wrench.force.z;
+        low_state.footForce[2] = msg.wrench.force.z;
 }
 
 void FSM_topic_control::RLfootCallback(const geometry_msgs::WrenchStamped &msg)
 {
-        lowState.eeForce[3].x = msg.wrench.force.x;
-        lowState.eeForce[3].y = msg.wrench.force.y;
-        lowState.eeForce[3].z = msg.wrench.force.z;
-        lowState.footForce[3] = msg.wrench.force.z;
+        low_state.eeForce[3].x = msg.wrench.force.x;
+        low_state.eeForce[3].y = msg.wrench.force.y;
+        low_state.eeForce[3].z = msg.wrench.force.z;
+        low_state.footForce[3] = msg.wrench.force.z;
 }

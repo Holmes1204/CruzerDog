@@ -184,4 +184,5 @@ void A1BasicEKF::update_estimation(FSM_data &data, double dt)
 
     data.state->cur_position = x.segment<3>(0);
     data.state->cur_vel = x.segment<3>(3);
+    
 }

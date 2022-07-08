@@ -73,74 +73,28 @@ void FSM::loop() {
     else{
         /*! Update Leg Control Data */
         //Update_LegController();
-        //Update_MPC();
-        /*! Update Phases and Bezier Curve in different gait */
-        this->Workers[this->flow]->run();
         /*
         if(!this->global_data.model_StateEstimate->is_inited()){
             this->global_data.model_StateEstimate->init_state(this->global_data);
         }else{
             Update_StateEstimate();
         }*/
-
-        /*! Convex MPC -> Calculate contact force */
-        //this->global_data.state->foot_contact_force = this->mpc_solver.Calculate_contact_force(this->global_data);
-        //Send_CMD();
-        
+        this->Workers[this->flow]->run();    
     }
 }
 
 
 void FSM::Update_LegController(){
     /*! Update feedback */
-    
-    for (int foot = 0; foot < 4; foot++) {
-        for (int joint = 0; joint < 3; joint++) {
-            this->global_data.model_LegController->data[foot].q(joint) = this->global_data.state->joint_position(foot*3+joint);
-            this->global_data.model_LegController->data[foot].qd(joint) = this->global_data.state->joint_velocity(foot*3+joint);
-        }
-    }
-    
 
-    /*! Update foot data, use Kinematics model */
-    //this->model_LegController->UpdateData();
-
-    for (int foot = 0; foot < 4; foot++) {
-        
-        this->global_data.state->foot_p_robot.block<3, 1>(0, foot) =
-                this->global_data.model_LegController->data[foot].p;
-        this->global_data.state->foot_v_robot.block<3, 1>(0, foot) =
-                this->global_data.model_LegController->data[foot].v;
-        this->global_data.state->foot_q.block<3, 1>(0, foot) =
-                this->global_data.model_LegController->data[foot].q;
-        this->global_data.state->foot_qd.block<3, 1>(0, foot) =
-                this->global_data.model_LegController->data[foot].qd;
-        this->global_data.state->foot_jacobian.block<3, 3>(foot*3, foot*3) =
-                this->global_data.model_LegController->data[foot].J;
-        this->global_data.state->foot_jacobian_inv.block<3, 3>(foot*3, foot*3) =
-                this->global_data.model_LegController->data[foot].J_inv;
-        
-
-        /*! add robot state to get foot position and velocity in world frame*/
-        this->global_data.state->foot_p_abs.block<3, 1>(0, foot) =
-                this->global_data.state->rotate_matrix
-                        * this->global_data.state->foot_p_robot.block<3, 1>(0, foot);
-        this->global_data.state->foot_p.block<3, 1>(0, foot) =
-                this->global_data.state->foot_p_abs.block<3, 1>(0, foot)
-                        + this->global_data.state->cur_position;
-        this->global_data.state->foot_v_abs.block<3, 1>(0, foot) =
-                this->global_data.state->rotate_matrix
-                        * this->global_data.state->foot_v_robot.block<3, 1>(0, foot);
-        this->global_data.state->foot_v.block<3, 1>(0, foot) =
-                this->global_data.state->foot_v_abs.block<3, 1>(0, foot)
-                        + this->global_data.state->cur_vel;
-    }
 }
+
 
 //MPC
 inline void FSM::Update_MPC() {
     this->global_data.state->foot_contact_force = this->global_data.mpc_solver->Calculate_contact_force(this->global_data, this->global_data.state->plan_dt);
 }
+
 
 
 //State_Estimator
@@ -151,9 +105,3 @@ inline void FSM::Update_StateEstimate() {
 
 }
 
-
-//SEND_COMD
-inline void FSM::Send_CMD(){
-    this->global_data.state->joint_torques = this->global_data.mpc_solver->Calculate_joint_torques(this->global_data);
-    this->topic_contrl.unitree_sim_send_cmd();
-}

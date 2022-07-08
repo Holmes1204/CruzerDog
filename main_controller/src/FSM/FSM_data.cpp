@@ -7,7 +7,6 @@ FSM_data::FSM_data()
     state->Reset();
     model_StateEstimate = new A1BasicEKF();
     mpc_solver = new Solver();
-    model_LegController = new LegController();
     _quadruped  = new Robot();
     _legController = new LegController();
 }
@@ -101,6 +100,7 @@ void state_data::Reset()
         early_contacts[i] = false;
         estimate_contacts[i] = false;
     }
+
     phase_variable.setZero();
 
     q_weights.resize(MPC_STATE_DIM);

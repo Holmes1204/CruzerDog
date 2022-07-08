@@ -52,15 +52,14 @@ void StandWorker::run()
     }else{
         percent=1;
     }
-    
     for (int j = 0; j < 12; j++)
     {
-        tpcl_.low_cmd.motorCmd[j].q = lastPos[j] * (1 - percent) + targetPos[j] * percent;
+
+        data_._legController->command->q_Des(j%3)= lastPos[j] * (1 - percent) + targetPos[j] * percent;
     }
+    
     tpcl_.unitree_sim_send_cmd();
-    // leg_angel 增减
     this->iter_run++;
-    // std::cout<<"iter_run"<<iter_run<<std::endl;
     return;
 }
 

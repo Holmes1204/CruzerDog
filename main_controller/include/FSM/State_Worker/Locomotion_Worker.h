@@ -5,7 +5,8 @@
 #include "FSM/FSM_tpcl.h"
 #include "Leg_Control/FootSwingTrajectory.h"
 #include "Leg_Control/Gait.h"
-
+#include <fstream>
+#include <iostream>
 class Locomotion : public StateWorker
 {
 private:
@@ -17,7 +18,9 @@ public:
     // LocomotionCtrlData<T> * _wbc_data;
     FSM_data &data_;
     FSM_topic_control &tpcl_;
-
+    //debug print path
+    std::ofstream file;
+    
     bool firstRun=true;
     FootSwingTrajectory footSwingTrajectories[4];
     //
@@ -35,6 +38,7 @@ public:
     Eigen::Vector3<double> Fr_des[4];
 
     Eigen::Vector4<double> contact_state;
+
 
     double _yaw_turn_rate;
     double _yaw_des;
