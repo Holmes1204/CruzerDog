@@ -1,27 +1,35 @@
-#ifndef _ROBOT_
-#define _ROBOT_
+#ifndef _ROBOT_MODEL_
+#define _ROBOT_MODEL_
 
 #include <eigen3/Eigen/Dense>
 #include <defination.h>
-#include "LegKinematics_unitree.h"
-#include "KinematicModel.h"
 #include <vector>
 #include <FSM/FSM_data.h>
+
 using namespace quad;
-class FSM_data;
 
-
-
-
+//Model for 8DOF ROBOT
 class Robot
 {
 public:
-    Robot(){};
-    ~Robot(){};
-    Eigen::Vector3<double> getHipLocation(int leg){
-        (void)leg;
-        return Eigen::Vector3<double>::Zero();
+    EIGEN_MAKE_ALIGNED_OPERATOR_NEW
+    double mass;//机器人总的质量，而非单独躯干的质量,Kg
+    double L1,L2;//L1 thigh(mid) 和 calf(down)电机转轴的距离，L2是calf电机转轴到足端中心点的距离,metre
+    Eigen::Matrix3<double> inertial_tensor;//kg*m^2
+    Eigen::Vector3<double> hip_location[4];//metre, in body frame
+    Eigen::Vector3<double> CoM;//机器人的质量中心,metre, in body frame
+    Robot(double mass_,double len_1,double len_2,double x_offset,double y_offset,Eigen::Matrix3<double>interial);
+    ~Robot();
+    Eigen::Vector3<double> getHipLocation(int leg_){
+        return hip_location[leg_];
     }
+    //forward_kinematic from  joint space to body frame 
+    Eigen::Vector3<double> forward_kinematic(Eigen::Vector3<double> q_,int leg_);
+    //inverse_kinematic from body frame to joint space
+    Eigen::Vector3<double> inverse_kinematic(Eigen::Vector3<double> p_,int leg_);
+    //calcualte jacobian matrix for each leg
+    Eigen::Matrix3<double> cal_jacobian(Eigen::Vector3<double> q_,int leg_);
 };
+// Robot my_robot(23.0,0.2,0.2,0.1805,0.1308,Eigen::Matrix3d::Zero());
 
 #endif

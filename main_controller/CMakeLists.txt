@@ -41,8 +41,6 @@ add_executable( main_ctrl
         src/Leg_Control/Gait.cpp
         src/Leg_Control/Leg_Control.cpp
         src/Robot/Robot.cpp
-        src/Robot/KinematicModel.cpp
-        src/Robot/LegKinematics_unitree.cpp
         src/Convex_MPC/ConvexMPC.cpp
         src/State_Estimator/state_estimator.cpp
         src/State_Estimator/A1BasicEKF.cpp
