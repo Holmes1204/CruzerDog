@@ -3,7 +3,7 @@ project(main_ctrl)
 
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11") #c++11
 #set(CMAKE_CXX_FLAGS_RELEASE "-O3 -g -march=native --fast-math -ffast-math -mtune=native -funroll-loops -DNDEBUG -DBOOST_DISABLE_ASSERTS" CACHE STRING COMPILE_FLAGS FORCE)
-set(CMAKE_CXX_FLAGS_RELEASE " -march=native -mtune=native -funroll-loops -DNDEBUG -DBOOST_DISABLE_ASSERTS" CACHE STRING COMPILE_FLAGS FORCE)
+#set(CMAKE_CXX_FLAGS_RELEASE " -march=native -mtune=native -funroll-loops -DNDEBUG -DBOOST_DISABLE_ASSERTS" CACHE STRING COMPILE_FLAGS FORCE)
 
 
 find_package(catkin REQUIRED COMPONENTS
@@ -28,8 +28,10 @@ include_directories(
 )
 
 
-add_executable( main_ctrl
+add_executable( 
+        main_ctrl
         src/main_ctrl.cpp
+        # src/test.cpp
         src/FSM/FiniteStateMachine.cpp
         src/FSM/FSM_data.cpp
         src/FSM/FSM_tpcl.cpp
@@ -41,7 +43,7 @@ add_executable( main_ctrl
         src/Leg_Control/Gait.cpp
         src/Leg_Control/Leg_Control.cpp
         src/Robot/Robot.cpp
-        src/Convex_MPC/ConvexMPC.cpp
+        src/Convex_MPC/MConvexMPC.cpp
         src/State_Estimator/state_estimator.cpp
         src/State_Estimator/A1BasicEKF.cpp
         )

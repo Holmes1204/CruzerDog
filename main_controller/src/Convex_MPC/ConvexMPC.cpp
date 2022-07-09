@@ -164,7 +164,6 @@ void ConvexMPC::Reset()
     B_mat_d.setZero();
     AB_mat_d.setZero();
     B_mat_d_list.setZero();
-
     A_qp.setZero();
     B_qp.setZero();
 
@@ -230,6 +229,7 @@ void Solver::InitParams()
 }
 
 /*! For Testing */
+
 void Solver::update_plan(FSM_data &data, double dt)
 {
     data.state->counter += 1;
@@ -304,10 +304,10 @@ void Solver::update_plan(FSM_data &data, double dt)
         data.state->foot_pDes.block<3, 1>(0, i) = data.state->foot_pDes_abs.block<3, 1>(0, i) + data.state->cur_position;
     }
 }
+
 void Solver::generate_swing_legs_ctrl(FSM_data &data, double dt)
 {
     data.state->joint_torques.setZero();
-
     // get current foot pos and target foot pose
     Eigen::Matrix<double, 3, NUM_LEG> foot_pos_cur;
     Eigen::Matrix<double, 3, NUM_LEG> foot_vel_cur;
@@ -355,7 +355,9 @@ void Solver::generate_swing_legs_ctrl(FSM_data &data, double dt)
         data.state->foot_forces_swing.block<3, 1>(0, i) = foot_pos_error.block<3, 1>(0, i).cwiseProduct(data.state->kp_foot.block<3, 1>(0, i)) +
                                                           foot_vel_error.block<3, 1>(0, i).cwiseProduct(data.state->kd_foot.block<3, 1>(0, i));
     }
+
 }
+
 
 /*! Use contact force to Calculate joint torques */
 Eigen::Matrix<double, NUM_DOF, 1> Solver::Calculate_joint_torques(FSM_data &data)

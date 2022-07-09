@@ -4,7 +4,7 @@
 #include <eigen3/Eigen/Dense>
 #include <defination.h>
 #include <Robot/Robot.h>
-#include <Convex_MPC/ConvexMPC.h>
+#include <Convex_MPC/MConvexMPC.h>
 #include "Leg_Control/Leg_Control.h"
 #include <State_Estimator/A1BasicEKF.h>
 #include <unitree_legged_msgs/MotorCmd.h>
@@ -150,7 +150,8 @@ public:
     state_data* state;
     LegController* _legController;
     A1BasicEKF* model_StateEstimate;
-    Solver* mpc_solver;
+    //Solver* mpc_solver;
+    MPC_SLOVER *mpc_solver;
     Robot* _quadruped;
     
     FSM_data();

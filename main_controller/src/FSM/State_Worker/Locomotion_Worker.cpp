@@ -1,5 +1,10 @@
 #include <FSM/State_Worker/Locomotion_Worker.h>
 #include <eigen3/Eigen/Dense>
+
+using namespace Eigen;
+template <typename T>
+using Vec3 = typename Eigen::Matrix<T, 3, 1>;
+
 Locomotion::Locomotion(FSM_data &data_, FSM_topic_control &tpcl) : data_(data_),
 																   tpcl_(tpcl)
 {
@@ -10,7 +15,7 @@ Locomotion::Locomotion(FSM_data &data_, FSM_topic_control &tpcl) : data_(data_),
 	dtMPC = dt * iterationsBetweenMPC;
 	trotting = OffsetDurationGait(horizonLength, Eigen::Vector4<int>(0, 2, 5, 7), Eigen::Vector4<int>(5, 5, 5, 5), "Trotting");
 	std::cout << "locomotion initial" << std::endl;
-	file.open("path.csv");
+	// file.open("path.csv");
 	/*
   if(_controlFSMData->_quadruped->_robotType == RobotType::MINI_CHEETAH){
 	cMPCOld = new ConvexMPCLocomotion(_controlFSMData->controlParameters->controller_dt,
@@ -44,21 +49,15 @@ void Locomotion::run()
 {
 
 	//从状态估计器中获得 rpy，xyz world frame
-	//  auto& seResult = data_._stateEstimator->getResult();
+	//  auto& seResult = data_.model_StateEstimate->getResult();
 	//  Eigen::Vector3<double> v_des_robot(_x_vel_des, _y_vel_des, 0);
 	// Eigen::Vector3<double> v_des_world =
 	// omniMode ? v_des_robot : seResult.rBody.transpose() * v_des_robot;
 	// Eigen::Vector3<double> v_robot = seResult.vWorld;
 	//运行mpc和wbic
-	// std::cout << "running locomotion" << std::endl;
 	b_run();
-	// Call the locomotion control logic for this iteration
-	// StateEstimate<T> stateEstimate = this->_data->_stateEstimator->getResult();
 
-	// Contact state logic
-	// estimateContact();
 	/*
-	cMPCOld->run<T>(*this->_data);
 	Eigen::Vector3<T> pDes_backup[4];
 	Eigen::Vector3<T> vDes_backup[4];
 	Eigen::Matrix3<T> Kp_backup[4];
@@ -96,14 +95,15 @@ void Locomotion::run()
 	}
 	*/
 }
+
 bool Locomotion::is_finished()
 {
-	if (iterationCounter>100*iterationsBetweenMPC)
+	if (iterationCounter > 100 * iterationsBetweenMPC)
 	{
 		file.close();
 		return true;
 	}
-	
+
 	return false;
 }
 void Locomotion::send()
@@ -111,6 +111,7 @@ void Locomotion::send()
 
 	return;
 }
+
 void Locomotion::b_run()
 {
 
@@ -235,6 +236,7 @@ void Locomotion::b_run()
 		footSwingTrajectories[i].setFinalPosition(Pf);
 		// std::cout << "leg " << i << " :" << Pf.transpose() << std::endl;
 	}
+
 	// printf("swing time: %.3f %.3f %.3f %.3f\n", swingTimeRemaining[0], swingTimeRemaining[1], swingTimeRemaining[2], swingTimeRemaining[3]);
 	// printf("\n");
 	// system("clear");
@@ -253,12 +255,12 @@ void Locomotion::b_run()
 		0, 0, 7;
 	Kd_stance = Kd;
 	// gait
+
 	Eigen::Vector4<double> contactStates = gait->getContactState();
 	Eigen::Vector4<double> swingStates = gait->getSwingState();
-
-	int *mpcTable = gait->getMpcTable();
-	// updateMPCIfNeeded(mpcTable, data_, omniMode);
-
+	
+	//gait->getMpcTable();
+	updateMPCIfNeeded(NULL);
 	//  StateEstimator* se = hw_i->state_estimator;
 	Eigen::Vector4<double> se_contactState(0, 0, 0, 0);
 
@@ -322,15 +324,14 @@ void Locomotion::b_run()
 			// Update for WBC
 			// Fr_des[foot] = -f_ff[foot];
 		}
-		//std::cout<<"leg"<< foot<<" : "<<data_._legController->command[foot].p_Des.transpose()<<std::endl;
+		// std::cout<<"leg"<< foot<<" : "<<data_._legController->command[foot].p_Des.transpose()<<std::endl;
 	}
-	file<<data_._legController->command[0].p_Des.transpose()<<std::endl;
-	file<<data_._legController->command[0].v_Des.transpose()<<std::endl;
-
+	// file << data_._legController->command[0].p_Des.transpose() << std::endl;
+	// file << data_._legController->command[0].v_Des.transpose() << std::endl;
 
 	/*
 	// se->set_contact_state(se_contactState);
-	data_._stateEstimator->setContactPhase(se_contactState);
+	data_.model_StateEstimate->setContactPhase(se_contactState);
 	// Update For WBC
 	pBody_des[0] = world_position_desired[0];
 	pBody_des[1] = world_position_desired[1];
@@ -348,4 +349,97 @@ void Locomotion::b_run()
 	contact_state = gait->getContactState();
 	// END of WBC Update
 	*/
+}
+
+void Locomotion::updateMPCIfNeeded(int *mpcTable)
+{
+	// iterationsBetweenMPC = 30;
+	if ((iterationCounter % iterationsBetweenMPC) == 0)
+	{
+		auto seResult = data_.model_StateEstimate->getResult();
+		double *p = seResult.position.data();
+
+		Vec3<double> v_des_robot(_x_vel_des, _y_vel_des, 0);
+		Vec3<double> v_des_world = seResult.rBody.transpose() * v_des_robot;
+		// double trajInitial[12] = {0,0,0, 0,0,.25, 0,0,0,0,0,0};
+
+		// printf("Position error: %.3f, integral %.3f\n", pxy_err[0], x_comp_integral);
+		double *trajAll = new double[12 * horizonLength];
+		int current_gait = 0;
+		if (current_gait == 4)
+		{
+			double trajInitial[12] = {
+				_roll_des,
+				_pitch_des /*-hw_i->state_estimator->se_ground_pitch*/,
+				(double)stand_traj[5] /*+(double)stateCommand->data_.stateDes[11]*/,
+				(double)stand_traj[0] /*+(double)fsm->main_control_settings.p_des[0]*/,
+				(double)stand_traj[1] /*+(double)fsm->main_control_settings.p_des[1]*/,
+				(double)_body_height /*fsm->main_control_settings.p_des[2]*/,
+				0, 0, 0, 0, 0, 0};
+
+			for (int i = 0; i < horizonLength; i++)
+				for (int j = 0; j < 12; j++)
+					trajAll[12 * i + j] = trajInitial[j];
+		}
+		else
+		{
+			const double max_pos_error = .1;
+			double xStart = world_position_desired[0];
+			double yStart = world_position_desired[1];
+
+			if (xStart - p[0] > max_pos_error)
+				xStart = p[0] + max_pos_error;
+			if (p[0] - xStart > max_pos_error)
+				xStart = p[0] - max_pos_error;
+
+			if (yStart - p[1] > max_pos_error)
+				yStart = p[1] + max_pos_error;
+			if (p[1] - yStart > max_pos_error)
+				yStart = p[1] - max_pos_error;
+
+			world_position_desired[0] = xStart;
+			world_position_desired[1] = yStart;
+
+			double trajInitial[12] = {
+				(double)rpy_comp[0], // 0
+				(double)rpy_comp[1], // 1
+				_yaw_des,			 // 2
+				// yawStart,    // 2
+				xStart,				  // 3
+				yStart,				  // 4
+				(double)_body_height, // 5
+				0,					  // 6
+				0,					  // 7
+				_yaw_turn_rate,		  // 8
+				v_des_world[0],		  // 9
+				v_des_world[1],		  // 10
+				0};					  // 11
+
+			for (int i = 0; i < horizonLength; i++)
+			{
+				for (int j = 0; j < 12; j++)
+					trajAll[12 * i + j] = trajInitial[j];
+
+				if (i == 0) // start at current position  TODO consider not doing this
+				{
+					// trajAll[3] = hw_i->state_estimator->se_pBody[0];
+					// trajAll[4] = hw_i->state_estimator->se_pBody[1];
+					trajAll[2] = seResult.rpy[2];
+				}
+				else
+				{
+					trajAll[12 * i + 2] = trajAll[12 * (i - 1) + 2];
+					trajAll[12 * i + 3] = trajAll[12 * (i - 1) + 3] + dtMPC * v_des_world[0];
+					trajAll[12 * i + 4] = trajAll[12 * (i - 1) + 4] + dtMPC * v_des_world[1];
+				}
+			}
+		}
+		// MPC_calculate here
+
+		const uint32_t horizon = 5;
+		int t[4 * horizon];
+		double traj[12 * horizon];
+		Eigen::Vector3d foot[4];
+		data_.mpc_solver->solve_mpc(t, traj);
+	}
 }

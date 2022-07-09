@@ -1,11 +1,15 @@
 #include <ros/ros.h>
-#include <Convex_MPC/ConvexMPC.h>
-//test
-int main(int argc, char** argv){
+#include <Convex_MPC/MConvexMPC.h>
 
-    FSM_data data;
-    data.mpc_solver->Calculate_contact_force(data,data.state->plan_dt);
-    data.mpc_solver->Calculate_joint_torques(data);
+// test
+int main(int argc, char **argv)
+{
+    const uint32_t horizon = 5;
+    int t[4 * horizon];
+    double traj[12 * horizon];
+    Eigen::Vector3d foot[4];
+    MPC_SLOVER test(horizon);
 
+    test.solve_mpc(foot, t, traj);
     return 0;
 }

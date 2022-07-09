@@ -18,10 +18,10 @@ public:
     // LocomotionCtrlData<T> * _wbc_data;
     FSM_data &data_;
     FSM_topic_control &tpcl_;
-    //debug print path
+    // debug print path
     std::ofstream file;
-    
-    bool firstRun=true;
+
+    bool firstRun = true;
     FootSwingTrajectory footSwingTrajectories[4];
     //
     Eigen::Vector3<double> pBody_des;
@@ -34,11 +34,10 @@ public:
     Eigen::Vector3<double> pFoot_des[4];
     Eigen::Vector3<double> vFoot_des[4];
     Eigen::Vector3<double> aFoot_des[4];
-
+    Eigen::Vector3<double> p_Body[4];
     Eigen::Vector3<double> Fr_des[4];
 
     Eigen::Vector4<double> contact_state;
-
 
     double _yaw_turn_rate;
     double _yaw_des;
@@ -77,13 +76,14 @@ public:
     Eigen::Vector3<double> rpy_comp;
     double x_comp_integral = 0;
     Eigen::Vector3<double> pFoot[4];
-    double trajAll[12 * 36];
+
     //
 
     virtual void send();
     virtual void run();
     virtual bool is_finished();
     void b_run();
+    void updateMPCIfNeeded(int *mpcTable);
     Locomotion(FSM_data &data, FSM_topic_control &tpcl);
     ~Locomotion();
 };

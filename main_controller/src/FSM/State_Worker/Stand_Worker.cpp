@@ -65,7 +65,7 @@ void StandWorker::run()
 
 bool StandWorker::is_finished()
 {
-    if (iter_run>2100)
+    if (iter_run>1)
     {
         std::cout << "Stand finished!" << std::endl;
         for (int i = 0; i < 4; i++)

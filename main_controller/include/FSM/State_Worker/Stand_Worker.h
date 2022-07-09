@@ -23,7 +23,6 @@ public:
     Eigen::Matrix<double, 3, NUM_LEG> foot_vel_target;
     Eigen::Matrix<double, 3, NUM_LEG> foot_pos_error;
     Eigen::Matrix<double, 3, NUM_LEG> foot_vel_error;
-    BezierUtils bezierUtils[NUM_LEG];
     double targetPos[12] = {0.0, 0.67, -1.3, -0.0, 0.67, -1.3,
                             0.0, 0.67, -1.3, -0.0, 0.67, -1.3};
     double lastPos[12];
