@@ -32,6 +32,7 @@ add_executable(
         main_ctrl
         src/main_ctrl.cpp
         # src/test.cpp
+        src/Math_tools/orientation_tools.cpp
         src/FSM/FiniteStateMachine.cpp
         src/FSM/FSM_data.cpp
         src/FSM/FSM_tpcl.cpp

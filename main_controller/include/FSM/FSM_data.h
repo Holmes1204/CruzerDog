@@ -151,7 +151,6 @@ public:
     LegController* _legController;
     A1BasicEKF* model_StateEstimate;
     //Solver* mpc_solver;
-    MPC_SLOVER *mpc_solver;
     Robot* _quadruped;
     
     FSM_data();

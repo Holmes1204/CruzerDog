@@ -16,18 +16,21 @@
 
 using namespace quad;
 
-struct StateEstimateResult {
+struct StateEstimateResult
+{
     EIGEN_MAKE_ALIGNED_OPERATOR_NEW
-  Eigen::Vector4<double> contactEstimate;
-  Eigen::Vector3<double> position;
-  Eigen::Vector3<double> vBody;
-  Eigen::Quaternion<double> orientation;
-  Eigen::Vector3<double> omegaBody;
-  Eigen::Matrix3<double> rBody;
-  Eigen::Vector3<double> rpy;
-  Eigen::Vector3<double> omegaWorld;
-  Eigen::Vector3<double> vWorld;
-  Eigen::Vector3<double> aBody, aWorld;
+    Eigen::Vector4<double> contactEstimate;
+    Eigen::Vector3<double> position;
+    Eigen::Vector3<double> vBody;
+
+    Eigen::Quaternion<double> orientation;
+    Eigen::Vector3<double> omegaBody;
+    Eigen::Matrix3<double> rBody;
+
+    Eigen::Vector3<double> rpy;
+    Eigen::Vector3<double> omegaWorld;
+    Eigen::Vector3<double> vWorld;
+    Eigen::Vector3<double> aBody, aWorld;
 };
 
 class FSM_data;
@@ -44,11 +47,10 @@ public:
     void init_state(FSM_data &data);
     void update_estimation(FSM_data &data, double dt);
     bool is_inited() { return filter_initialized; }
-    StateEstimateResult& getResult(){return this->result;}
+    StateEstimateResult &getResult() { return this->result; }
+    StateEstimateResult result;
 
 private:
-
-    StateEstimateResult result;
     bool filter_initialized = false;
     // state
     // 0 1 2 pos 3 4 5 vel 6 7 8 foot pos FL 9 10 11 foot pos FR 12 13 14 foot pos RL 15 16 17 foot pos RR
@@ -87,9 +89,7 @@ private:
     // variables to process foot force
     double smooth_foot_force[4];
     double estimated_contacts[4];
-
 };
-
 
 class A1BasicEKF;
 

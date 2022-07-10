@@ -3,16 +3,17 @@
 #include "Leg_Control/Interpolation.h"
 #include "eigen3/Eigen/Dense"
 
-class FootSwingTrajectory {
+class FootSwingTrajectory
+{
 private:
+public:
     Eigen::Vector3d _p0, _pf, _p, _v, _a;
     double _height;
-
-public:
     /*!
      * Construct a new foot swing trajectory with everything set to zero
      */
-    FootSwingTrajectory() {
+    FootSwingTrajectory()
+    {
         _p0.setZero();
         _pf.setZero();
         _p.setZero();
@@ -25,7 +26,8 @@ public:
      * Set the starting location of the foot
      * @param p0 : the initial foot position
      */
-    void setInitialPosition(Eigen::Vector3d p0) {
+    void setInitialPosition(Eigen::Vector3d p0)
+    {
         _p0 = p0;
     }
 
@@ -33,7 +35,8 @@ public:
      * Set the desired final position of the foot
      * @param pf : the final foot posiiton
      */
-    void setFinalPosition(Eigen::Vector3d pf) {
+    void setFinalPosition(Eigen::Vector3d pf)
+    {
         _pf = pf;
     }
 
@@ -41,16 +44,18 @@ public:
      * Set the maximum height of the swing
      * @param h : the maximum height of the swing, achieved halfway through the swing
      */
-    void setHeight(double h) {
+    void setHeight(double h)
+    {
         _height = h;
     }
 
     /*!
-    * Compute foot swing trajectory with a bezier curve
-    * @param phase : How far along we are in the swing (0 to 1)
-    * @param swingTime : How long the swing should take (seconds)
-    */
-    void computeSwingTrajectoryBezier(double phase, double swingTime) {
+     * Compute foot swing trajectory with a bezier curve
+     * @param phase : How far along we are in the swing (0 to 1)
+     * @param swingTime : How long the swing should take (seconds)
+     */
+    void computeSwingTrajectoryBezier(double phase, double swingTime)
+    {
         _p[0] = Interpolate::cubicBezier(_p0[0], _pf[0], phase);
         _v[0] = Interpolate::cubicBezierFirstDerivative(_p0[0], _pf[0], phase);
         _a[0] = Interpolate::cubicBezierSecondDerivative(_p0[0], _pf[0], phase) / (swingTime * swingTime);
@@ -63,13 +68,16 @@ public:
 
         double zp, zv, za;
 
-        if(phase < 0.5) {
+        if (phase < 0.5)
+        {
             zp = Interpolate::cubicBezier(_p0[2], _p0[2] + _height, phase * 2);
             zv = Interpolate::cubicBezierFirstDerivative(_p0[2], _p0[2] + _height, phase * 2);
             za = Interpolate::cubicBezierSecondDerivative(_p0[2], _p0[2] + _height, phase * 2) * 4 / (swingTime * swingTime);
-        } else {
+        }
+        else
+        {
             zp = Interpolate::cubicBezier(_p0[2] + _height, _pf[2], phase * 2 - 1);
-            zv = Interpolate::cubicBezierFirstDerivative(_p0[2] + _height, _pf[2], phase * 2 - 1) ;
+            zv = Interpolate::cubicBezierFirstDerivative(_p0[2] + _height, _pf[2], phase * 2 - 1);
             za = Interpolate::cubicBezierSecondDerivative(_p0[2] + _height, _pf[2], phase * 2 - 1) * 4 / (swingTime * swingTime);
         }
 
@@ -79,11 +87,12 @@ public:
     }
 
     /*!
-    * Compute foot swing trajectory with a bezier curve
-    * @param phase : How far along we are in the swing (0 to 1)
-    * @param swingTime : How long the swing should take (seconds)
-    */
-    void computeStanceTrajectoryBezier(double phase, double swingTime) {
+     * Compute foot swing trajectory with a bezier curve
+     * @param phase : How far along we are in the swing (0 to 1)
+     * @param swingTime : How long the swing should take (seconds)
+     */
+    void computeStanceTrajectoryBezier(double phase, double swingTime)
+    {
         _p[0] = Interpolate::cubicBezier(_p0[0], _pf[0], phase);
         _v[0] = Interpolate::cubicBezierFirstDerivative(_p0[0], _pf[0], phase);
         _a[0] = Interpolate::cubicBezierSecondDerivative(_p0[0], _pf[0], phase) / (swingTime * swingTime);
@@ -99,7 +108,8 @@ public:
      * Get the foot position at the current point along the swing
      * @return : the foot position
      */
-    Eigen::Vector3d getPosition() {
+    Eigen::Vector3d getPosition()
+    {
         return _p;
     }
 
@@ -107,7 +117,8 @@ public:
      * Get the foot velocity at the current point along the swing
      * @return : the foot velocity
      */
-    Eigen::Vector3d getVelocity() {
+    Eigen::Vector3d getVelocity()
+    {
         return _v;
     }
 
@@ -115,7 +126,8 @@ public:
      * Get the foot acceleration at the current point along the swing
      * @return : the foot acceleration
      */
-    Eigen::Vector3d getAcceleration() {
+    Eigen::Vector3d getAcceleration()
+    {
         return _a;
     }
 };

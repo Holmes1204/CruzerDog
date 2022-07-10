@@ -11,14 +11,14 @@ FSM_topic_control::FSM_topic_control(ros::NodeHandle &nh, FSM_data &data) : nh_(
 
 FSM_topic_control::~FSM_topic_control()
 {
-        
 }
 
 // joy_control
 void FSM_topic_control::Joy_Callback(const sensor_msgs::Joy &msg)
 {
+        //复杂的控制逻辑源于对实现过程的精准把握
         this->data_.state->command_vel.x() = msg.axes[4] * JOY_CMD_VELX_MAX;
-        this->data_.state->command_vel.y() = msg.axes[3] * JOY_CMD_VELY_MAX;
+        this->data_.state->command_vel.y() = 0;
         this->data_.state->command_vel.z() = 0;
         // Debug
         system("clear");
@@ -40,6 +40,8 @@ void FSM_topic_control::em_fdb_callback(const wtr_serial_msg::em_fb_raw &msg)
 
                 data_._legController->data[leg].q(2) = mt_fdb.em_pos_fb_raw[leg * 2 + 1];
                 data_._legController->data[leg].qd(2) = mt_fdb.em_vel_fb_raw[leg * 2 + 1];
+
+                // imu的解算之后再加
                 // leg[leg].compute_Jacobian(leg);
                 // leg[leg].get_foot_pos(leg);
                 // leg[leg].get_foot_vel();
@@ -97,39 +99,121 @@ void FSM_topic_control::em_cmd_send()
 }
 
 // unitree_sim
+void FSM_topic_control::cheater_estimator_callback(const gazebo_msgs::ModelStates &msg)
+{
+        geometry_msgs::Pose model_pose = msg.pose.back();
+        geometry_msgs::Twist model_twist = msg.twist.back();
+        StateEstimateResult &result = this->data_.model_StateEstimate->result;
+        result.position.x() = model_pose.position.x;
+        result.position.y() = model_pose.position.y;
+        result.position.z() = model_pose.position.z;
+        result.orientation.x() = model_pose.orientation.x;
+        result.orientation.y() = model_pose.orientation.y;
+        result.orientation.z() = model_pose.orientation.z;
+        result.orientation.w() = model_pose.orientation.w;
+        result.rpy = ori::quatToRPY(result.orientation);
+        result.omegaWorld.x() = model_twist.angular.x;
+        result.omegaWorld.y() = model_twist.angular.y;
+        result.omegaWorld.z() = model_twist.angular.z;
+        result.vWorld.x() = model_twist.linear.x;
+        result.vWorld.y() = model_twist.linear.y;
+        result.vWorld.z() = model_twist.linear.z;
+        result.rBody = result.orientation.toRotationMatrix().transpose();
+        // {
+
+        //         static uint32_t dbg_count = 0;
+        //         static int i = 0;
+        //         if (dbg_count % 40 == 0)
+        //         {
+        //                 system("clear");
+        //                 std::cout << "P" << std::endl
+        //                           << result.position.transpose() << std::endl
+        //                           << "RPY" << std::endl
+        //                           << result.rpy.transpose() << std::endl
+        //                           << "v" << std::endl
+        //                           << result.vWorld.transpose() << std::endl
+        //                           << "omega" << std::endl
+        //                           << result.omegaWorld.transpose() << std::endl
+        //                           << "rBody" << std::endl
+        //                           << result.rBody << std::endl
+        //                           << std::endl;
+        //                 dbg_count = 0;
+        //         }
+        //         dbg_count++;
+        // }
+}
+
 void FSM_topic_control::unitree_sim_set_up()
 {
+
         // joint publisher
-        this->joint_sim_unitree_pub[0] = this->nh_.advertise<unitree_legged_msgs::MotorCmd>("/a1_gazebo/FL_hip_controller/command", 1);
-        this->joint_sim_unitree_pub[1] = this->nh_.advertise<unitree_legged_msgs::MotorCmd>("/a1_gazebo/FL_thigh_controller/command", 1);
-        this->joint_sim_unitree_pub[2] = this->nh_.advertise<unitree_legged_msgs::MotorCmd>("/a1_gazebo/FL_calf_controller/command", 1);
-        this->joint_sim_unitree_pub[3] = this->nh_.advertise<unitree_legged_msgs::MotorCmd>("/a1_gazebo/FR_hip_controller/command", 1);
-        this->joint_sim_unitree_pub[4] = this->nh_.advertise<unitree_legged_msgs::MotorCmd>("/a1_gazebo/FR_thigh_controller/command", 1);
-        this->joint_sim_unitree_pub[5] = this->nh_.advertise<unitree_legged_msgs::MotorCmd>("/a1_gazebo/FR_calf_controller/command", 1);
-        this->joint_sim_unitree_pub[6] = this->nh_.advertise<unitree_legged_msgs::MotorCmd>("/a1_gazebo/RL_hip_controller/command", 1);
-        this->joint_sim_unitree_pub[7] = this->nh_.advertise<unitree_legged_msgs::MotorCmd>("/a1_gazebo/RL_thigh_controller/command", 1);
-        this->joint_sim_unitree_pub[8] = this->nh_.advertise<unitree_legged_msgs::MotorCmd>("/a1_gazebo/RL_calf_controller/command", 1);
-        this->joint_sim_unitree_pub[9] = this->nh_.advertise<unitree_legged_msgs::MotorCmd>("/a1_gazebo/RR_hip_controller/command", 1);
-        this->joint_sim_unitree_pub[10] = this->nh_.advertise<unitree_legged_msgs::MotorCmd>("/a1_gazebo/RR_thigh_controller/command", 1);
-        this->joint_sim_unitree_pub[11] = this->nh_.advertise<unitree_legged_msgs::MotorCmd>("/a1_gazebo/RR_calf_controller/command", 1);
-        // joint subscriber
-        this->imu_sim_unitree_sub = this->nh_.subscribe("/trunk_imu", 1, &FSM_topic_control::Imu_Callback, this);
-        this->footForce_sim_unitree_sub[0] = this->nh_.subscribe("/visual/FR_foot_contact/the_force", 1, &FSM_topic_control::FRfootCallback, this);
-        this->footForce_sim_unitree_sub[1] = this->nh_.subscribe("/visual/FL_foot_contact/the_force", 1, &FSM_topic_control::FLfootCallback, this);
-        this->footForce_sim_unitree_sub[2] = this->nh_.subscribe("/visual/RR_foot_contact/the_force", 1, &FSM_topic_control::RRfootCallback, this);
-        this->footForce_sim_unitree_sub[3] = this->nh_.subscribe("/visual/RL_foot_contact/the_force", 1, &FSM_topic_control::RLfootCallback, this);
-        this->joint_sim_unitree_sub[0] = this->nh_.subscribe("/a1_gazebo/FL_hip_controller/state", 2, &FSM_topic_control::FL_hip_state_callback, this);
-        this->joint_sim_unitree_sub[1] = this->nh_.subscribe("/a1_gazebo/FL_thigh_controller/state", 2, &FSM_topic_control::FL_thigh_state_callback, this);
-        this->joint_sim_unitree_sub[2] = this->nh_.subscribe("/a1_gazebo/FL_calf_controller/state", 2, &FSM_topic_control::FL_calf_state_callback, this);
-        this->joint_sim_unitree_sub[3] = this->nh_.subscribe("/a1_gazebo/FR_hip_controller/state", 2, &FSM_topic_control::FR_hip_state_callback, this);
-        this->joint_sim_unitree_sub[4] = this->nh_.subscribe("/a1_gazebo/FR_thigh_controller/state", 2, &FSM_topic_control::FR_thigh_state_callback, this);
-        this->joint_sim_unitree_sub[5] = this->nh_.subscribe("/a1_gazebo/FR_calf_controller/state", 2, &FSM_topic_control::FR_calf_state_callback, this);
-        this->joint_sim_unitree_sub[6] = this->nh_.subscribe("/a1_gazebo/RL_hip_controller/state", 2, &FSM_topic_control::RL_hip_state_callback, this);
-        this->joint_sim_unitree_sub[7] = this->nh_.subscribe("/a1_gazebo/RL_thigh_controller/state", 2, &FSM_topic_control::RL_thigh_state_callback, this);
-        this->joint_sim_unitree_sub[8] = this->nh_.subscribe("/a1_gazebo/RL_calf_controller/state", 2, &FSM_topic_control::RL_calf_state_callback, this);
-        this->joint_sim_unitree_sub[9] = this->nh_.subscribe("/a1_gazebo/RR_hip_controller/state", 2, &FSM_topic_control::RR_hip_state_callback, this);
-        this->joint_sim_unitree_sub[10] = this->nh_.subscribe("/a1_gazebo/RR_thigh_controller/state", 2, &FSM_topic_control::RR_thigh_state_callback, this);
-        this->joint_sim_unitree_sub[11] = this->nh_.subscribe("/a1_gazebo/RR_calf_controller/state", 2, &FSM_topic_control::RR_calf_state_callback, this);
+        this->joint_sim_unitree_pub[0] = this->nh_.advertise<unitree_legged_msgs::MotorCmd>("/a1_8dof_gazebo/FL_thigh_controller/command", 10);
+        this->joint_sim_unitree_pub[1] = this->nh_.advertise<unitree_legged_msgs::MotorCmd>("/a1_8dof_gazebo/FL_calf_controller/command", 10);
+        this->joint_sim_unitree_pub[2] = this->nh_.advertise<unitree_legged_msgs::MotorCmd>("/a1_8dof_gazebo/FR_thigh_controller/command", 10);
+        this->joint_sim_unitree_pub[3] = this->nh_.advertise<unitree_legged_msgs::MotorCmd>("/a1_8dof_gazebo/FR_calf_controller/command", 10);
+        this->joint_sim_unitree_pub[4] = this->nh_.advertise<unitree_legged_msgs::MotorCmd>("/a1_8dof_gazebo/RL_thigh_controller/command", 10);
+        this->joint_sim_unitree_pub[5] = this->nh_.advertise<unitree_legged_msgs::MotorCmd>("/a1_8dof_gazebo/RL_calf_controller/command", 10);
+        this->joint_sim_unitree_pub[6] = this->nh_.advertise<unitree_legged_msgs::MotorCmd>("/a1_8dof_gazebo/RR_thigh_controller/command", 10);
+        this->joint_sim_unitree_pub[7] = this->nh_.advertise<unitree_legged_msgs::MotorCmd>("/a1_8dof_gazebo/RR_calf_controller/command", 10);
+        // subscriber
+        this->imu_sim_unitree_sub = this->nh_.subscribe("/trunk_imu", 5, &FSM_topic_control::Imu_Callback, this);
+        this->cheater_estimator_sub = this->nh_.subscribe("/gazebo/model_states", 5, &FSM_topic_control::cheater_estimator_callback, this);
+        this->footForce_sim_unitree_sub[0] = this->nh_.subscribe("/visual/FR_foot_contact/the_force", 5, &FSM_topic_control::FRfootCallback, this);
+        this->footForce_sim_unitree_sub[1] = this->nh_.subscribe("/visual/FL_foot_contact/the_force", 5, &FSM_topic_control::FLfootCallback, this);
+        this->footForce_sim_unitree_sub[2] = this->nh_.subscribe("/visual/RR_foot_contact/the_force", 5, &FSM_topic_control::RRfootCallback, this);
+        this->footForce_sim_unitree_sub[3] = this->nh_.subscribe("/visual/RL_foot_contact/the_force", 5, &FSM_topic_control::RLfootCallback, this);
+        this->joint_sim_unitree_sub[0] = this->nh_.subscribe("/a1_8dof_gazebo/FL_thigh_controller/state", 10, &FSM_topic_control::FL_thigh_state_callback, this);
+        this->joint_sim_unitree_sub[1] = this->nh_.subscribe("/a1_8dof_gazebo/FL_calf_controller/state", 10, &FSM_topic_control::FL_calf_state_callback, this);
+        this->joint_sim_unitree_sub[2] = this->nh_.subscribe("/a1_8dof_gazebo/FR_thigh_controller/state", 10, &FSM_topic_control::FR_thigh_state_callback, this);
+        this->joint_sim_unitree_sub[3] = this->nh_.subscribe("/a1_8dof_gazebo/FR_calf_controller/state", 10, &FSM_topic_control::FR_calf_state_callback, this);
+        this->joint_sim_unitree_sub[4] = this->nh_.subscribe("/a1_8dof_gazebo/RL_thigh_controller/state", 10, &FSM_topic_control::RL_thigh_state_callback, this);
+        this->joint_sim_unitree_sub[5] = this->nh_.subscribe("/a1_8dof_gazebo/RL_calf_controller/state", 10, &FSM_topic_control::RL_calf_state_callback, this);
+        this->joint_sim_unitree_sub[6] = this->nh_.subscribe("/a1_8dof_gazebo/RR_thigh_controller/state", 10, &FSM_topic_control::RR_thigh_state_callback, this);
+        this->joint_sim_unitree_sub[7] = this->nh_.subscribe("/a1_8dof_gazebo/RR_calf_controller/state", 10, &FSM_topic_control::RR_calf_state_callback, this);
+}
+
+void FSM_topic_control::unitree_sim_data_decode()
+{
+        // motor data decod
+        for (int leg = 0; leg < 4; leg++)
+        {
+                //未考虑电机开始时的偏置，之后添加
+                data_._legController->data[leg].q(0) = 0;
+                data_._legController->data[leg].qd(0) = 0;
+
+                data_._legController->data[leg].q(1) = low_state.motorState[leg * 2].q;
+                data_._legController->data[leg].qd(1) = low_state.motorState[leg * 2].dq;
+
+                data_._legController->data[leg].q(2) = low_state.motorState[leg * 2 + 1].q;
+                data_._legController->data[leg].qd(2) = low_state.motorState[leg * 2 + 1].dq;
+                // todo: 这样写太麻烦了应该简化
+                data_._legController->data[leg].J = data_._quadruped->cal_jacobian(data_._legController->data[leg].q, leg);
+                data_._legController->data[leg].p = data_._quadruped->forward_kinematic(data_._legController->data[leg].q, leg);
+                data_._legController->data[leg].v = data_._legController->data[leg].J * data_._legController->data[leg].qd;
+        }
+        // debug
+        // {
+
+        //         static uint32_t dbg_count = 0;
+        //         static int i=0;
+        //         if (dbg_count % 40 == 0)
+        //         {
+        //                 system("clear");
+        //                 std::cout << "J" << std::endl
+        //                           << data_._legController->data[i].J << std::endl
+        //                           << "p" << std::endl
+        //                           << data_._legController->data[i].p.transpose() << std::endl
+        //                           << "v" << std::endl
+        //                           << data_._legController->data[i].v.transpose() << std::endl
+        //                           << "q" << std::endl
+        //                           << data_._legController->data[i].q.transpose() << std::endl
+        //                           << "qd" << std::endl
+        //                           << data_._legController->data[i].qd.transpose() << std::endl
+        //                           << std::endl;
+        //                 dbg_count=0;
+        //         }
+        //         dbg_count++;
+        // }
 }
 
 void FSM_topic_control::unitree_sim_send_cmd()
@@ -157,134 +241,98 @@ void FSM_topic_control::unitree_sim_send_cmd()
                     data_._legController->command[leg].kdJoint *
                         (data_._legController->command[leg].qd_Des - data_._legController->data[leg].qd);
 
-                low_cmd.motorCmd[3 * leg].mode = 0x0A;
-                low_cmd.motorCmd[3 * leg].q = data_._legController->command[leg].q_Des(0);
-                low_cmd.motorCmd[3 * leg].dq = data_._legController->command[leg].qd_Des(0);
-                low_cmd.motorCmd[3 * leg].Kp = data_._legController->command[leg].kpJoint(0, 0);
-                low_cmd.motorCmd[3 * leg].Kd = data_._legController->command[leg].kpJoint(0, 0);
-                low_cmd.motorCmd[3 * leg].tau = legTorque(0);
+                low_cmd.motorCmd[2 * leg].mode = 0x0A;
+                low_cmd.motorCmd[2 * leg].q = data_._legController->command[leg].q_Des(1);
+                low_cmd.motorCmd[2 * leg].dq = data_._legController->command[leg].qd_Des(1);
+                low_cmd.motorCmd[2 * leg].Kp = data_._legController->command[leg].kpJoint(1, 1);
+                low_cmd.motorCmd[2 * leg].Kd = data_._legController->command[leg].kdJoint(1, 1);
+                low_cmd.motorCmd[2 * leg].tau = legTorque(1);
+                joint_sim_unitree_pub[2 * leg].publish(low_cmd.motorCmd[2 * leg]);
 
-                low_cmd.motorCmd[3 * leg + 1].mode = 0x0A;
-                low_cmd.motorCmd[3 * leg + 1].q = data_._legController->command[leg].q_Des(1);
-                low_cmd.motorCmd[3 * leg + 1].dq = data_._legController->command[leg].qd_Des(1);
-                low_cmd.motorCmd[3 * leg + 1].Kp = data_._legController->command[leg].kpJoint(1, 1);
-                low_cmd.motorCmd[3 * leg + 1].Kd = data_._legController->command[leg].kdJoint(1, 1);
-                low_cmd.motorCmd[3 * leg + 1].tau = legTorque(1);
-
-                low_cmd.motorCmd[3 * leg + 2].mode = 0x0A;
-                low_cmd.motorCmd[3 * leg + 2].q = data_._legController->command[leg].q_Des(2);
-                low_cmd.motorCmd[3 * leg + 2].dq = data_._legController->command[leg].qd_Des(2);
-                low_cmd.motorCmd[3 * leg + 2].Kp = data_._legController->command[leg].kpJoint(2, 2);
-                low_cmd.motorCmd[3 * leg + 2].Kd = data_._legController->command[leg].kdJoint(2, 2);
-                low_cmd.motorCmd[3 * leg + 2].tau = legTorque(2);
-        }
-
-        for (int i = 0; i < 12; i++)
-        {
-                joint_sim_unitree_pub[i].publish(low_cmd.motorCmd[i]);
+                low_cmd.motorCmd[2 * leg + 1].mode = 0x0A;
+                low_cmd.motorCmd[2 * leg + 1].q = data_._legController->command[leg].q_Des(2);
+                low_cmd.motorCmd[2 * leg + 1].dq = data_._legController->command[leg].qd_Des(2);
+                low_cmd.motorCmd[2 * leg + 1].Kp = data_._legController->command[leg].kpJoint(2, 2);
+                low_cmd.motorCmd[2 * leg + 1].Kd = data_._legController->command[leg].kdJoint(2, 2);
+                low_cmd.motorCmd[2 * leg + 1].tau = legTorque(2);
+                joint_sim_unitree_pub[2 * leg + 1].publish(low_cmd.motorCmd[2 * leg + 1]);
         }
 }
 
-void FSM_topic_control::FL_hip_state_callback(const unitree_legged_msgs::MotorState &msg)
+// FL_thigh -> 0
+void FSM_topic_control::FL_thigh_state_callback(const unitree_legged_msgs::MotorState &msg)
 {
         low_state.motorState[0].mode = msg.mode;
         low_state.motorState[0].q = msg.q;
         low_state.motorState[0].dq = msg.dq;
         low_state.motorState[0].tauEst = msg.tauEst;
-        // std::cout << 0 << std::endl;
+        // std::cout << 1 << std::endl;
 }
-void FSM_topic_control::FL_thigh_state_callback(const unitree_legged_msgs::MotorState &msg)
+// FL_calf -> 1
+void FSM_topic_control::FL_calf_state_callback(const unitree_legged_msgs::MotorState &msg)
 {
         low_state.motorState[1].mode = msg.mode;
         low_state.motorState[1].q = msg.q;
         low_state.motorState[1].dq = msg.dq;
         low_state.motorState[1].tauEst = msg.tauEst;
-        // std::cout << 1 << std::endl;
+        // std::cout << 2 << std::endl;
 }
-void FSM_topic_control::FL_calf_state_callback(const unitree_legged_msgs::MotorState &msg)
+
+// FR thigh ->2
+void FSM_topic_control::FR_thigh_state_callback(const unitree_legged_msgs::MotorState &msg)
 {
         low_state.motorState[2].mode = msg.mode;
         low_state.motorState[2].q = msg.q;
         low_state.motorState[2].dq = msg.dq;
         low_state.motorState[2].tauEst = msg.tauEst;
-        // std::cout << 2 << std::endl;
+        // std::cout << 4 << std::endl;
 }
-
-// FR
-void FSM_topic_control::FR_hip_state_callback(const unitree_legged_msgs::MotorState &msg)
+// FR calf ->3
+void FSM_topic_control::FR_calf_state_callback(const unitree_legged_msgs::MotorState &msg)
 {
         low_state.motorState[3].mode = msg.mode;
         low_state.motorState[3].q = msg.q;
         low_state.motorState[3].dq = msg.dq;
         low_state.motorState[3].tauEst = msg.tauEst;
-        // std::cout << 3 << std::endl;
+        // std::cout << 5 << std::endl;
 }
-void FSM_topic_control::FR_thigh_state_callback(const unitree_legged_msgs::MotorState &msg)
+
+// RL thibh 4
+
+void FSM_topic_control::RL_thigh_state_callback(const unitree_legged_msgs::MotorState &msg)
 {
         low_state.motorState[4].mode = msg.mode;
         low_state.motorState[4].q = msg.q;
         low_state.motorState[4].dq = msg.dq;
         low_state.motorState[4].tauEst = msg.tauEst;
-        // std::cout << 4 << std::endl;
+        // std::cout << 7 << std::endl;
 }
-void FSM_topic_control::FR_calf_state_callback(const unitree_legged_msgs::MotorState &msg)
+// RL calf 5
+void FSM_topic_control::RL_calf_state_callback(const unitree_legged_msgs::MotorState &msg)
 {
         low_state.motorState[5].mode = msg.mode;
         low_state.motorState[5].q = msg.q;
         low_state.motorState[5].dq = msg.dq;
         low_state.motorState[5].tauEst = msg.tauEst;
-        // std::cout << 5 << std::endl;
+        // std::cout << 8 << std::endl;
 }
 
-// RL
-void FSM_topic_control::RL_hip_state_callback(const unitree_legged_msgs::MotorState &msg)
+// RR thigh 6
+void FSM_topic_control::RR_thigh_state_callback(const unitree_legged_msgs::MotorState &msg)
 {
         low_state.motorState[6].mode = msg.mode;
         low_state.motorState[6].q = msg.q;
         low_state.motorState[6].dq = msg.dq;
         low_state.motorState[6].tauEst = msg.tauEst;
-        // std::cout << 6 << std::endl;
+        // std::cout << 10 << std::endl;
 }
-void FSM_topic_control::RL_thigh_state_callback(const unitree_legged_msgs::MotorState &msg)
+// RR calf 7
+void FSM_topic_control::RR_calf_state_callback(const unitree_legged_msgs::MotorState &msg)
 {
         low_state.motorState[7].mode = msg.mode;
         low_state.motorState[7].q = msg.q;
         low_state.motorState[7].dq = msg.dq;
         low_state.motorState[7].tauEst = msg.tauEst;
-        // std::cout << 7 << std::endl;
-}
-void FSM_topic_control::RL_calf_state_callback(const unitree_legged_msgs::MotorState &msg)
-{
-        low_state.motorState[8].mode = msg.mode;
-        low_state.motorState[8].q = msg.q;
-        low_state.motorState[8].dq = msg.dq;
-        low_state.motorState[8].tauEst = msg.tauEst;
-        // std::cout << 8 << std::endl;
-}
-
-// RR
-void FSM_topic_control::RR_hip_state_callback(const unitree_legged_msgs::MotorState &msg)
-{
-        low_state.motorState[9].mode = msg.mode;
-        low_state.motorState[9].q = msg.q;
-        low_state.motorState[9].dq = msg.dq;
-        low_state.motorState[9].tauEst = msg.tauEst;
-        // std::cout << 9 << std::endl;
-}
-void FSM_topic_control::RR_thigh_state_callback(const unitree_legged_msgs::MotorState &msg)
-{
-        low_state.motorState[10].mode = msg.mode;
-        low_state.motorState[10].q = msg.q;
-        low_state.motorState[10].dq = msg.dq;
-        low_state.motorState[10].tauEst = msg.tauEst;
-        // std::cout << 10 << std::endl;
-}
-void FSM_topic_control::RR_calf_state_callback(const unitree_legged_msgs::MotorState &msg)
-{
-        low_state.motorState[11].mode = msg.mode;
-        low_state.motorState[11].q = msg.q;
-        low_state.motorState[11].dq = msg.dq;
-        low_state.motorState[11].tauEst = msg.tauEst;
         // std::cout << 11 << std::endl;
 }
 

@@ -33,8 +33,8 @@ void MPC_SLOVER::initialize()
     Matrix<double, 5, 3> f_block;
     f_block << muinv, 0, 1.f,
         -muinv, 0, 1.f,
-        0, muinv, 1.f,
-        0, -muinv, 1.f,
+        0, muinv, 0,
+        0, -muinv, 0,
         0, 0, 1.f;
 
     for (uint16_t i = 0; i < horizon * 4; i++)
@@ -68,7 +68,7 @@ void MPC_SLOVER::ct_ss_mats()
     Matrix<double, 3, 3> I_inv = I_world.inverse();
     for (uint16_t b = 0; b < 4; b++)
     {
-        Bct.block(6, b * 3, 3, 3) = cross_mat(I_inv, r_feet.col(b));
+        Bct.block(6, b * 3, 3, 3) = cross_mat(I_inv, r_feet_world.col(b));
         Bct.block(9, b * 3, 3, 3) = Matrix<double, 3, 3>::Identity() / mass;
     }
 }
@@ -114,26 +114,14 @@ void MPC_SLOVER::c2qp()
 #endif
 }
 
-void MPC_SLOVER::solve_mpc(int *contact_state, double *traj)
+void MPC_SLOVER::solve_mpc(double phi, Vec12<double> &x_0_, Mat34<double> &r_feet_w_, int *contact_state, double *traj, Vec12<double> &force_)
 {
-    Eigen::Vector3d r_feet[4];
-    Quaterniond q;
-    q.Identity();
-    // std::cout << q << std::endl;
-    Vector3d p, w, v;
-    p.setZero();
-    w.setZero();
-    v.setZero();
-    double phi = 0;
-    Matrix3d R_yaw;
+    // input initial state
+    x_0 = x_0_;
+    r_feet_world = r_feet_w_;
     R_yaw << std::cos(phi), -std::sin(phi), 0,
         std::sin(phi), std::cos(phi), 0,
         0, 0, 1;
-    // roll pitch yaw
-    Matrix<double, 3, 1> rpy;
-    quat_to_rpy(q, rpy);
-    // input initial state
-    x_0 << 0, 0, 0, p, w, v;
     // expected trajectory
     for (int i = 0; i < horizon * 12; i++)
     {
@@ -143,40 +131,21 @@ void MPC_SLOVER::solve_mpc(int *contact_state, double *traj)
     I_world = R_yaw * I_body * R_yaw.transpose();
     ct_ss_mats();
     c2qp();
-    for (uint16_t i = 0; i < horizon * 4; i++)
+    for (uint16_t i = 0; i < horizon; i++)
     {
-        lowerC.segment(i * 5, 5) << 0, 0, 0, 0, 0;
-        upperC.segment(i * 5, 5) << INFTY, INFTY, INFTY, INFTY, 600;
+        for (int leg = 0; leg < 4; leg++)
+        {
+            lowerC.segment(i * 20 + leg * 5, 5) << 0, 0, 0, 0, 0;
+            upperC.segment(i * 20 + leg * 5, 5) << INFTY, INFTY, 0, 0, 300 * contact_state[4 * horizon + leg];
+        }
     }
     H = 2 * (B_qp.transpose() * L * B_qp + K);                // matrix
     g = 2 * B_qp.transpose() * L * (A_qp * x_0 + G_qp - X_d); // vector
-
     // instantiate the solver
     if (!solver.isInitialized())
     {
-// #define DBG 1
-// #ifdef DBG
-//         std::cout << "A_qp" << std::endl
-//                   << A_qp << std::endl;
-//         std::cout << "B_qp" << std::endl
-//                   << B_qp << std::endl;
-//         std::cout << "K" << std::endl
-//                   << K << std::endl;
-//         std::cout << "L" << std::endl
-//                   << L << std::endl;
-//         std::cout << "x_0" << std::endl
-//                   << x_0 << std::endl;
-//         std::cout << "X_d" << std::endl
-//                   << X_d << std::endl;
-//         std::cout << "C" << std::endl
-//                   << C_sparse << std::endl;
-//         std::cout << "H" << std::endl
-//                   << H << std::endl;
-//         std::cout << "g" << std::endl
-//                   << g << std::endl;
-// #endif
         solver.settings()->setWarmStart(true);
-        solver.settings()->setVerbosity(true);
+        solver.settings()->setVerbosity(false);
         solver.data()->setNumberOfVariables(NumberOfVariables);     //设置A矩阵的列数，即n
         solver.data()->setNumberOfConstraints(NumberOfConstraints); //设置A矩阵的行数，即m
         solver.data()->setHessianMatrix(H);
@@ -197,6 +166,21 @@ void MPC_SLOVER::solve_mpc(int *contact_state, double *traj)
     solver.solveProblem();
     // get the controller input
     QPSolution = solver.getSolution();
-    std::cout << "QPSolution:" << std::endl
-              << QPSolution.segment(0, 12) << std::endl;
+    force_ = QPSolution.segment(0, 12);
+    // // debug
+    // {
+
+    //     static uint32_t dbg_count = 0;
+    //     static int i = 0;
+    //     if (dbg_count % 20 == 0)
+    //     {
+    //         system("clear");
+    //         std::cout
+    //             << "foot_force" << std::endl
+    //             << force_.segment.transpose() << std::endl
+    //             << std::endl;
+    //         dbg_count = 0;
+    //     }
+    //     dbg_count++;
+    // }
 }

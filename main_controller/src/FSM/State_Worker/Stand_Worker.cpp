@@ -5,11 +5,6 @@ StandWorker::StandWorker(FSM_data &data, FSM_topic_control &tpcl) : data_(data),
 {
     this->iter_run = 0;
     this->iter_time_ms = 0.0f;
-    for (int i = 0; i < 4; i++)
-    {
-        f_t[i] = Vector3f::Zero();
-        f_0[i] = Vector3f::Zero();
-    }
 }
 
 StandWorker::~StandWorker()
@@ -18,7 +13,6 @@ StandWorker::~StandWorker()
 
 void StandWorker::send()
 {
-    
 }
 
 //不会一直卡在一个run中运行
@@ -34,7 +28,6 @@ void StandWorker::run()
 
     for (int i = 0; i < 4; i++)
     {
-
     }
 
     if (iter_run % 50 == 0)
@@ -46,32 +39,58 @@ void StandWorker::run()
         // std::cout<<0<<data_.leg[0].force.transpose()<<std::endl;
     }
     double percent;
-    if (iter_run<2000)
-    {
-        percent= iter_run/2000.0;
-    }else{
-        percent=1;
-    }
-    for (int j = 0; j < 12; j++)
-    {
 
-        data_._legController->command->q_Des(j%3)= lastPos[j] * (1 - percent) + targetPos[j] * percent;
+#define period 1000u
+    if (iter_run < period)
+    {
+        percent = iter_run / double(period);
     }
-    
+    else
+    {
+        percent = 1;
+    }
+    for (int leg = 0; leg < 4; leg++)
+    {
+        data_._legController->command[leg].zero();
+        data_._legController->command[leg].q_Des(1) = 0.0f * (1 - percent) + targetPos[1] * percent;
+        data_._legController->command[leg].qd_Des(1) = 0;
+        data_._legController->command[leg].kpJoint(1, 1) = 300;
+        data_._legController->command[leg].kdJoint(1, 1) = 15;
+        data_._legController->command[leg].q_Des(2) = 0.0f * (1 - percent) + targetPos[2] * percent;
+        data_._legController->command[leg].qd_Des(2) = 0;
+        data_._legController->command[leg].kpJoint(2, 2) = 300;
+        data_._legController->command[leg].kdJoint(2, 2) = 15;
+    }
+    // static int diter = -1;
+    // if (iter_run > period)
+    // {
+    //     if (diter > 0)
+    //     {
+    //         diter = -1;
+    //     }
+    // }
+    // else if (iter_run < 1)
+    // {
+    //     if (diter < 0)
+    //     {
+    //         diter = 1;
+    //     }
+    // }
+    // this->iter_run += diter;
     tpcl_.unitree_sim_send_cmd();
-    this->iter_run++;
+    this->iter_run ++;
     return;
 }
 
 bool StandWorker::is_finished()
 {
-    if (iter_run>1)
+    if (iter_run > 1+period)
     {
         std::cout << "Stand finished!" << std::endl;
-        for (int i = 0; i < 4; i++)
-        {
-            std::cout << i << " -------------- " << std::endl;
-        }
+        // for (int i = 0; i < 4; i++)
+        // {
+        //     std::cout << i << " -------------- " << std::endl;
+        // }
         return true;
     }
     else

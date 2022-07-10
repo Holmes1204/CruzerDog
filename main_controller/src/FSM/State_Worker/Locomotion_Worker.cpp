@@ -1,42 +1,20 @@
 #include <FSM/State_Worker/Locomotion_Worker.h>
-#include <eigen3/Eigen/Dense>
 
-using namespace Eigen;
-template <typename T>
-using Vec3 = typename Eigen::Matrix<T, 3, 1>;
-
-Locomotion::Locomotion(FSM_data &data_, FSM_topic_control &tpcl) : data_(data_),
-																   tpcl_(tpcl)
+Locomotion::Locomotion(FSM_data &data_, FSM_topic_control &tpcl)
+	: data_(data_),
+	  tpcl_(tpcl),
+	  horizonLength(10),
+	  dt(0.002),
+	  iterationsBetweenMPC(10),
+	  trotting(horizonLength, Eigen::Vector4<int>(0, 5, 5, 0), Eigen::Vector4<int>(5, 5, 5, 5), "Trotting")
 {
-
-	iterationsBetweenMPC = 10;
-	horizonLength = 10;
-	dt = 0.002;
 	dtMPC = dt * iterationsBetweenMPC;
-	trotting = OffsetDurationGait(horizonLength, Eigen::Vector4<int>(0, 2, 5, 7), Eigen::Vector4<int>(5, 5, 5, 5), "Trotting");
+	mpc_solver = new MPC_SLOVER(1, dtMPC);
 	std::cout << "locomotion initial" << std::endl;
 	// file.open("path.csv");
-	/*
-  if(_controlFSMData->_quadruped->_robotType == RobotType::MINI_CHEETAH){
-	cMPCOld = new ConvexMPCLocomotion(_controlFSMData->controlParameters->controller_dt,
-		//30 / (1000. * _controlFSMData->controlParameters->controller_dt),
-		//22 / (1000. * _controlFSMData->controlParameters->controller_dt),
-		27 / (1000. * _controlFSMData->controlParameters->controller_dt),
-		_controlFSMData->userParameters);
-
-  }else if(_controlFSMData->_quadruped->_robotType == RobotType::CHEETAH_3){
-	cMPCOld = new ConvexMPCLocomotion(_controlFSMData->controlParameters->controller_dt,
-		33 / (1000. * _controlFSMData->controlParameters->controller_dt),
-		_controlFSMData->userParameters);
-
-  }else{
-	assert(false);
-  }
-	*/
-
 	// Initialize GRF and footstep locations to 0s
 	// this->footFeedForwardForces = Mat34<T>::Zero();
-	// this->footstepLocations = Mat34<T>::Zero();
+	this->r_foot_world = Mat34<double>::Zero();
 	//_wbc_ctrl = new LocomotionCtrl<T>(_controlFSMData->_quadruped->buildModel());
 	//_wbc_data = new LocomotionCtrlData<T>();
 }
@@ -44,17 +22,11 @@ Locomotion::Locomotion(FSM_data &data_, FSM_topic_control &tpcl) : data_(data_),
 /**
  * Calls the functions to be executed on each control loop iteration.
  */
-
 void Locomotion::run()
 {
 
 	//从状态估计器中获得 rpy，xyz world frame
-	//  auto& seResult = data_.model_StateEstimate->getResult();
-	//  Eigen::Vector3<double> v_des_robot(_x_vel_des, _y_vel_des, 0);
-	// Eigen::Vector3<double> v_des_world =
-	// omniMode ? v_des_robot : seResult.rBody.transpose() * v_des_robot;
-	// Eigen::Vector3<double> v_robot = seResult.vWorld;
-	//运行mpc和wbic
+
 	b_run();
 
 	/*
@@ -94,6 +66,8 @@ void Locomotion::run()
 	  this->_data->_legController->command[leg].kdCartesian = Kd_backup[leg];
 	}
 	*/
+
+	tpcl_.unitree_sim_send_cmd();
 }
 
 bool Locomotion::is_finished()
@@ -101,7 +75,7 @@ bool Locomotion::is_finished()
 	if (iterationCounter > 100 * iterationsBetweenMPC)
 	{
 		file.close();
-		return true;
+		return false;
 	}
 
 	return false;
@@ -114,11 +88,10 @@ void Locomotion::send()
 
 void Locomotion::b_run()
 {
-
 	// some first time initialization
 	auto &seResult = data_.model_StateEstimate->getResult();
-	seResult.rBody.setIdentity();
-	_x_vel_des = 1.0;
+
+	_x_vel_des = 5.0;
 	_y_vel_des = 0.0;
 	Eigen::Vector3<double> v_des_robot(_x_vel_des, _y_vel_des, 0);
 	Eigen::Vector3<double> v_des_world = seResult.rBody.transpose() * v_des_robot;
@@ -132,9 +105,14 @@ void Locomotion::b_run()
 
 		for (int i = 0; i < 4; i++)
 		{
+			pFoot[i] = seResult.position +
+					   seResult.rBody.transpose() * (data_._quadruped->getHipLocation(i) +
+													 data_._legController->data[i].p); //此时的p应该是在hipframe下的
 			footSwingTrajectories[i].setHeight(0.05);
 			footSwingTrajectories[i].setInitialPosition(pFoot[i]);
 			footSwingTrajectories[i].setFinalPosition(pFoot[i]);
+			// if(i==0)
+			// std::cout << "leg " << i << " :" << pFoot[i].transpose() << std::endl;
 		}
 		firstRun = false;
 	}
@@ -142,7 +120,6 @@ void Locomotion::b_run()
 	//_SetupCommand(data_);
 
 	// pick gait
-
 	Gait *gait = &trotting;
 	if (_body_height < 0.02)
 	{
@@ -163,32 +140,43 @@ void Locomotion::b_run()
 		rpy_int[0] += dt * (_roll_des - seResult.rpy[0]) / v_robot[1];
 	}
 	//积分限,对rpy的积分补偿
-	rpy_int[0] = fminf(fmaxf(rpy_int[0], -.25), .25);
-	rpy_int[1] = fminf(fmaxf(rpy_int[1], -.25), .25);
-	rpy_comp[1] = v_robot[0] * rpy_int[1];
-	rpy_comp[0] = v_robot[1] * rpy_int[0]; // turn off for pronking
+
 	// world frame 下足端轨迹
 	for (int i = 0; i < 4; i++)
 	{
 		pFoot[i] = seResult.position +
-				   seResult.rBody.transpose() * (data_._quadruped->getHipLocation(i) +
-												 data_._legController->data[i].p);
+				   seResult.rBody.transpose() *
+					   (data_._quadruped->getHipLocation(i) + data_._legController->data[i].p);
+		// // debug
+		// {
+		// 	static uint32_t dbg_count = 0;
+		// 	static int fsd = 1;
+		// 	if (dbg_count % 20 == 0)
+		// 	{
+		// 		system("clear");
+		// 		std::cout << "p_foot_world_" << fsd << std::endl
+		// 				  << pFoot[fsd].transpose() << std::endl
+		// 				  << "postion" << std::endl
+		// 				  << seResult.position.transpose() << std::endl
+		// 				  << "r_body" << std::endl
+		// 				  << seResult.rBody << std::endl
+		// 				  << std::endl;
+		// 		dbg_count = 0;
+		// 	}
+		// 	dbg_count++;
+		// }
 	}
 
 	world_position_desired += dt * Eigen::Vector3<double>(v_des_world[0], v_des_world[1], 0);
-
 	// foot placement
 	for (int l = 0; l < 4; l++)
 		swingTimes[l] = gait->getCurrentSwingTime(dtMPC, l);
-	//这几个不知道是什么东西
-	double side_sign[4] = {-1, 1, -1, 1};
-	double interleave_y[4] = {-0.08, 0.08, 0.02, -0.02};
-	// double interleave_gain = -0.13;
-	double interleave_gain = -0.2;
-	// double v_abs = std::fabs(seResult.vBody[0]);
 
+	double side_sign[4] = {-1, 1, -1, 1};
+	// double v_abs = std::fabs(seResult.vBody[0]);
 	double v_abs = std::fabs(v_des_robot[0]);
 
+	//轨迹规划在世界坐标系完成，控制在leg frame下完成
 	for (int i = 0; i < 4; i++)
 	{
 
@@ -203,9 +191,6 @@ void Locomotion::b_run()
 		// if(firstSwing[i]) {
 		// footSwingTrajectories[i].setHeight(.05);
 		footSwingTrajectories[i].setHeight(.06);
-		Eigen::Vector3<double> offset(0, side_sign[i] * .065, 0);
-		Eigen::Vector3<double> pRobotFrame = (data_._quadruped->getHipLocation(i) + offset);
-		pRobotFrame[1] += interleave_y[i] * v_abs * interleave_gain;
 
 		double stance_time = gait->getCurrentStanceTime(dtMPC, i);
 
@@ -214,11 +199,12 @@ void Locomotion::b_run()
 		des_vel[1] = _y_vel_des;
 		des_vel[2] = 0.0;
 		// P_foot findal,足端轨迹的最后值，在world frame下
-		Eigen::Vector3<double> Pf = seResult.position + seResult.rBody.transpose() * (des_vel * swingTimeRemaining[i]);
+		Eigen::Vector3<double> Pf = seResult.position +
+									seResult.rBody.transpose() *
+										(data_._quadruped->getHipLocation(i) + des_vel * swingTimeRemaining[i]);
 
 		//这个大概是30cm
-		double p_rel_max = 0.3f;
-
+		double p_rel_max = 0.15f;
 		// Using the estimated velocity is correct
 		// Eigen::Vector3<double> des_vel_world = seResult.rBody.transpose() * des_vel;
 		double pfx_rel = seResult.vWorld[0] * (.5) * stance_time +
@@ -231,9 +217,10 @@ void Locomotion::b_run()
 		pfy_rel = fminf(fmaxf(pfy_rel, -p_rel_max), p_rel_max);
 		Pf[0] += pfx_rel;
 		Pf[1] += pfy_rel;
-		Pf[2] = -0.003;
+		Pf[2] = -0.003; //一定要慎重
 		// Pf[2] = 0.0;
 		footSwingTrajectories[i].setFinalPosition(Pf);
+		// if(i==0)
 		// std::cout << "leg " << i << " :" << Pf.transpose() << std::endl;
 	}
 
@@ -243,31 +230,31 @@ void Locomotion::b_run()
 	//  calc gait
 	iterationCounter++;
 
-	// load LCM leg swing gains
-	//此时stance的kp为零，不会因为位置的关系影响脚的回收工作
-	Kp << 700, 0, 0,
-		0, 700, 0,
-		0, 0, 150;
+	//此时stance的kp为零，不会因为位置的关系影响脚的回收工作，这个地方的PID要改
+	Kp << 500, 0, 0,
+		0, 500, 0,
+		0, 0, 500;
 	Kp_stance = 0 * Kp;
 
-	Kd << 7, 0, 0,
-		0, 7, 0,
-		0, 0, 7;
+	Kd << 15, 0, 0,
+		0, 15, 0,
+		0, 0, 15;
 	Kd_stance = Kd;
 	// gait
 
 	Eigen::Vector4<double> contactStates = gait->getContactState();
 	Eigen::Vector4<double> swingStates = gait->getSwingState();
-	
-	//gait->getMpcTable();
-	updateMPCIfNeeded(NULL);
-	//  StateEstimator* se = hw_i->state_estimator;
+
+	int *contact_state = gait->getMpcTable();
+	updateMPCIfNeeded(contact_state);
 	Eigen::Vector4<double> se_contactState(0, 0, 0, 0);
 
 	for (int foot = 0; foot < 4; foot++)
 	{
 		double contactState = contactStates[foot];
 		double swingState = swingStates[foot];
+		data_._legController->command[foot].zero();
+		f_ff[foot] = -seResult.rBody.transpose() * Fr_des.segment(foot * 3, 3);
 		if (swingState > 0) // foot is in swing
 		{
 			if (firstSwing[foot])
@@ -277,12 +264,9 @@ void Locomotion::b_run()
 			}
 			footSwingTrajectories[foot].computeSwingTrajectoryBezier(swingState, swingTimes[foot]);
 
-			//      footSwingTrajectories[foot]->updateFF(hw_i->leg_controller->leg_datas[foot].q,
-			//                                          hw_i->leg_controller->leg_datas[foot].qd, 0); // velocity dependent friction compensation todo removed
-			// hw_i->leg_controller->leg_datas[foot].qd, fsm->main_control_settings.variable[2]);
-
 			Eigen::Vector3<double> pDesFootWorld = footSwingTrajectories[foot].getPosition();
 			Eigen::Vector3<double> vDesFootWorld = footSwingTrajectories[foot].getVelocity();
+			// leg frame 的kp kd 控制
 			Eigen::Vector3<double> pDesLeg = seResult.rBody * (pDesFootWorld - seResult.position) - data_._quadruped->getHipLocation(foot);
 			Eigen::Vector3<double> vDesLeg = seResult.rBody * (vDesFootWorld - seResult.vWorld);
 
@@ -292,6 +276,7 @@ void Locomotion::b_run()
 			aFoot_des[foot] = footSwingTrajectories[foot].getAcceleration();
 
 			// Update leg control command regardless of the usage of WBIC
+
 			data_._legController->command[foot].p_Des = pDesLeg;
 			data_._legController->command[foot].v_Des = vDesLeg;
 			data_._legController->command[foot].kpCartesian = Kp;
@@ -300,13 +285,10 @@ void Locomotion::b_run()
 		else // foot is in stance
 		{
 			firstSwing[foot] = true;
-
 			Eigen::Vector3<double> pDesFootWorld = footSwingTrajectories[foot].getPosition();
 			Eigen::Vector3<double> vDesFootWorld = footSwingTrajectories[foot].getVelocity();
-
 			Eigen::Vector3<double> pDesLeg = seResult.rBody * (pDesFootWorld - seResult.position) - data_._quadruped->getHipLocation(foot);
 			Eigen::Vector3<double> vDesLeg = seResult.rBody * (vDesFootWorld - seResult.vWorld);
-			// cout << "Foot " << foot << " relative velocity desired: " << vDesLeg.transpose() << "\n";
 
 			data_._legController->command[foot].p_Des = pDesLeg;
 			data_._legController->command[foot].v_Des = vDesLeg;
@@ -314,41 +296,34 @@ void Locomotion::b_run()
 			data_._legController->command[foot].kdCartesian = Kd_stance;
 			data_._legController->command[foot].force_FF = f_ff[foot];
 			data_._legController->command[foot].kdJoint = Eigen::Matrix3<double>::Identity() * 0.2;
-
-			//      footSwingTrajectories[foot]->updateFF(hw_i->leg_controller->leg_datas[foot].q,
-			//                                          hw_i->leg_controller->leg_datas[foot].qd, 0); todo removed
-			// hw_i->leg_controller->leg_command[foot].tau_ff += 0*footSwingController[foot]->getTauFF();
-
-			//            cout << "Foot " << foot << " force: " << f_ff[foot].transpose() << "\n";
 			se_contactState[foot] = contactState;
-			// Update for WBC
-			// Fr_des[foot] = -f_ff[foot];
 		}
-		// std::cout<<"leg"<< foot<<" : "<<data_._legController->command[foot].p_Des.transpose()<<std::endl;
-	}
-	// file << data_._legController->command[0].p_Des.transpose() << std::endl;
-	// file << data_._legController->command[0].v_Des.transpose() << std::endl;
 
-	/*
-	// se->set_contact_state(se_contactState);
-	data_.model_StateEstimate->setContactPhase(se_contactState);
-	// Update For WBC
-	pBody_des[0] = world_position_desired[0];
-	pBody_des[1] = world_position_desired[1];
-	pBody_des[2] = _body_height;
-	vBody_des[0] = v_des_world[0];
-	vBody_des[1] = v_des_world[1];
-	vBody_des[2] = 0.;
-	aBody_des.setZero();
-	pBody_RPY_des[0] = 0.;
-	pBody_RPY_des[1] = 0.;
-	pBody_RPY_des[2] = _yaw_des;
-	vBody_Ori_des[0] = 0.;
-	vBody_Ori_des[1] = 0.;
-	vBody_Ori_des[2] = _yaw_turn_rate;
-	contact_state = gait->getContactState();
-	// END of WBC Update
-	*/
+		// debug
+		{
+
+			static uint32_t dbg_count = 0;
+			static int i = 0;
+			if (dbg_count % 20 == 0)
+			{
+				system("clear");
+				std::cout
+					<< "foot_force 0" << std::endl
+					<< f_ff[0].transpose() << std::endl
+					<< "foot_force 1" << std::endl
+					<< f_ff[1].transpose() << std::endl
+					<< "foot_force 2" << std::endl
+					<< f_ff[2].transpose() << std::endl
+					<< "foot_force 3" << std::endl
+					<< f_ff[3].transpose() << std::endl
+					<< std::endl;
+				dbg_count = 0;
+			}
+			dbg_count++;
+			file << data_._legController->command[i].p_Des.transpose() << std::endl;
+			file << data_._legController->data[i].p.transpose() << std::endl;
+		}
+	}
 }
 
 void Locomotion::updateMPCIfNeeded(int *mpcTable)
@@ -359,9 +334,15 @@ void Locomotion::updateMPCIfNeeded(int *mpcTable)
 		auto seResult = data_.model_StateEstimate->getResult();
 		double *p = seResult.position.data();
 
+		for (int leg = 0; leg < 4; leg++)
+		{
+			r_foot_world.col(leg) = seResult.rBody.transpose() * (data_._quadruped->getHipLocation(leg) + data_._legController->data[leg].p);
+		}
+
+		Vec12<double> x_0;
+		x_0 << seResult.rpy, seResult.position, seResult.omegaWorld, seResult.vWorld;
 		Vec3<double> v_des_robot(_x_vel_des, _y_vel_des, 0);
 		Vec3<double> v_des_world = seResult.rBody.transpose() * v_des_robot;
-		// double trajInitial[12] = {0,0,0, 0,0,.25, 0,0,0,0,0,0};
 
 		// printf("Position error: %.3f, integral %.3f\n", pxy_err[0], x_comp_integral);
 		double *trajAll = new double[12 * horizonLength];
@@ -401,9 +382,9 @@ void Locomotion::updateMPCIfNeeded(int *mpcTable)
 			world_position_desired[1] = yStart;
 
 			double trajInitial[12] = {
-				(double)rpy_comp[0], // 0
-				(double)rpy_comp[1], // 1
-				_yaw_des,			 // 2
+				0,		  // 0
+				0,		  // 1
+				_yaw_des, // 2
 				// yawStart,    // 2
 				xStart,				  // 3
 				yStart,				  // 4
@@ -435,11 +416,6 @@ void Locomotion::updateMPCIfNeeded(int *mpcTable)
 			}
 		}
 		// MPC_calculate here
-
-		const uint32_t horizon = 5;
-		int t[4 * horizon];
-		double traj[12 * horizon];
-		Eigen::Vector3d foot[4];
-		data_.mpc_solver->solve_mpc(t, traj);
+		mpc_solver->solve_mpc(seResult.rpy(2), x_0, r_foot_world, mpcTable, trajAll, Fr_des);
 	}
 }

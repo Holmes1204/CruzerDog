@@ -5,40 +5,50 @@
 #include "FSM/FSM_tpcl.h"
 #include "Leg_Control/FootSwingTrajectory.h"
 #include "Leg_Control/Gait.h"
+#include <eigen3/Eigen/Dense>
 #include <fstream>
 #include <iostream>
+#include <cpptypes.h>
+
 class Locomotion : public StateWorker
 {
 private:
 public:
     EIGEN_MAKE_ALIGNED_OPERATOR_NEW
-    int iter = 0;
+
     // ConvexMPCLocomotion* cMPCOld;
     // WBC_Ctrl<T> * _wbc_ctrl;
     // LocomotionCtrlData<T> * _wbc_data;
     FSM_data &data_;
     FSM_topic_control &tpcl_;
+    MPC_SLOVER *mpc_solver;
+    int iterationsBetweenMPC;
+    int horizonLength;
+    int default_iterations_between_mpc;
+    double dt;
+    double dtMPC;
+    int iterationCounter = 0;
+    int iter = 0;
     // debug print path
     std::ofstream file;
 
     bool firstRun = true;
     FootSwingTrajectory footSwingTrajectories[4];
     //
-    Eigen::Vector3<double> pBody_des;
-    Eigen::Vector3<double> vBody_des;
-    Eigen::Vector3<double> aBody_des;
+    Vec3<double> pBody_des;
+    Vec3<double> vBody_des;
+    Vec3<double> aBody_des;
 
-    Eigen::Vector3<double> pBody_RPY_des;
-    Eigen::Vector3<double> vBody_Ori_des;
+    Vec3<double> pBody_RPY_des;
+    Vec3<double> vBody_Ori_des;
 
-    Eigen::Vector3<double> pFoot_des[4];
-    Eigen::Vector3<double> vFoot_des[4];
-    Eigen::Vector3<double> aFoot_des[4];
-    Eigen::Vector3<double> p_Body[4];
-    Eigen::Vector3<double> Fr_des[4];
+    Vec3<double> pFoot_des[4];
+    Vec3<double> vFoot_des[4];
+    Vec3<double> aFoot_des[4];
+    Vec3<double> p_Body[4];
+    Vec12<double> Fr_des;
 
-    Eigen::Vector4<double> contact_state;
-
+    Vec4<double> contact_state;
     double _yaw_turn_rate;
     double _yaw_des;
 
@@ -54,28 +64,22 @@ public:
     double _body_height_running = 0.29;
     double _body_height_jumping = 0.36;
 
-    int iterationsBetweenMPC;
-    int horizonLength;
-    int default_iterations_between_mpc;
-    double dt;
-    double dtMPC;
-    int iterationCounter = 0;
-
-    Eigen::Vector3<double> f_ff[4];
-    Eigen::Vector4<double> swingTimes;
-    OffsetDurationGait trotting;
-    Eigen::Matrix3<double> Kp, Kd, Kp_stance, Kd_stance;
+    Vec3<double> f_ff[4];
+    Vec4<double> swingTimes;
+    Mat3<double> Kp, Kd, Kp_stance, Kd_stance;
     bool firstSwing[4];
     double swingTimeRemaining[4];
     double stand_traj[6];
     int current_gait;
     int gaitNumber;
+    Mat34<double> r_foot_world;
 
-    Eigen::Vector3<double> world_position_desired;
-    Eigen::Vector3<double> rpy_int;
-    Eigen::Vector3<double> rpy_comp;
+    Vec3<double> world_position_desired;
+    Vec3<double> rpy_int;
+    Vec3<double> rpy_comp;
     double x_comp_integral = 0;
-    Eigen::Vector3<double> pFoot[4];
+    Vec3<double> pFoot[4];
+    OffsetDurationGait trotting;
 
     //
 

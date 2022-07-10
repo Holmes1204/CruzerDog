@@ -8,14 +8,10 @@ void LegControllerCommand::zero()
     tau_FF = Eigen::Vector3d::Zero();
     kpJoint = Eigen::Matrix3d::Zero();
     kdJoint = Eigen::Matrix3d::Zero();
-    // world frame
+    //hip frame
     p_Des = Eigen::Vector3d::Zero();
     v_Des = Eigen::Vector3d::Zero();
     force_FF = Eigen::Vector3d::Zero();
-    // body frame
-    p_b_Des = Eigen::Vector3d::Zero();
-    v_b_Des = Eigen::Vector3d::Zero();
-    force_b_FF = Eigen::Vector3d::Zero();
     kpCartesian = Eigen::Matrix3d::Zero();
     kdCartesian = Eigen::Matrix3d::Zero();
 }
@@ -26,12 +22,9 @@ void LegControllerData::zero()
     q = Eigen::Vector3d::Zero();
     qd = Eigen::Vector3d::Zero();
     tauEstimate = Eigen::Vector3d::Zero();
-    // world frame
+    //hip frame
     p = Eigen::Vector3d::Zero();
     v = Eigen::Vector3d::Zero();
-    // body frame
-    p_b = Eigen::Vector3d::Zero();
-    v_b = Eigen::Vector3d::Zero();
     // world frame jacobian
     J = Eigen::Matrix3d::Zero();
 }

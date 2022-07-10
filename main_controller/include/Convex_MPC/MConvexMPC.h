@@ -6,7 +6,7 @@
 #include <OsqpEigen/OsqpEigen.h>
 #include <stdio.h>
 #include <sys/time.h>
-
+#include <cpptypes.h>
 //#define K_PRINT_EVERYTHING
 using namespace Eigen;
 using namespace OsqpEigen;
@@ -17,7 +17,7 @@ public:
 	EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 	int NumberOfVariables;
 	int NumberOfConstraints;
-	OsqpEigen::Solver &solver;
+	OsqpEigen::Solver solver;
 	VectorXd lowerC;
 	VectorXd upperC;
 	VectorXd QPSolution;
@@ -30,11 +30,11 @@ public:
 	Matrix<double, 12, 12> Adt;
 	Vector<double, 12> Gdt;
 	Matrix<double, 25, 25> ABc, expmm;
-	Matrix<double, 3, 4> r_feet;
+	Matrix<double, 3, 4> r_feet_world;
+	Vec12<double> x_0;
 	VectorXd X_d;
 	VectorXd U_b;
 	Matrix<double, 3, 3> R_yaw;
-	Matrix<double, 12, 1> x_0;
 	Matrix<double, 3, 3> I_world, I_body;
 	Matrix<double, 12, 12> Act;
 	Matrix<double, 12, 12> Bct;
@@ -53,13 +53,13 @@ public:
 	double alpha;
 	uint32_t horizon;
 
-	MPC_SLOVER(uint32_t horizon_, OsqpEigen::Solver &solver_) : horizon(horizon_), solver(solver_)
+	MPC_SLOVER(uint32_t horizon_,double dtMPC_) : horizon(horizon_),dtMPC(dtMPC_)
 	{
 		if (horizon > 19)
 		{
 			throw std::runtime_error("horizon is too long!");
 		}
-		mass = 10;
+		mass = 13;
 		alpha = 1e-7;
 		mu = 0.4;
 		muinv = 1.f / mu;
@@ -69,31 +69,18 @@ public:
 			0.0, 0.0, 420.0,
 			0.05, 0.05, 0.05,
 			30.0, 30.0, 10.0;
-		I_body.setIdentity();
+		I_body<<0.0158533,-3.66e-5, -6.11e-5, -3.66e-5 ,0.0377999 ,-2.75e-5 ,-6.11e-5 ,- 2.75e-5 ,0.0456542;
 		initialize();
 	}
 	~MPC_SLOVER() {}
 
 	void initialize();
-	void solve_mpc(int *contact_state, double *traj);
+	void solve_mpc(double phi,Vec12<double> &x_0_, Mat34<double> &r_feet_w_, int *contact_state, double *traj,Vec12<double>& force_);
 
 private:
 	// continuous time state space matrices.
 	void ct_ss_mats();
 	void c2qp();
-
-	double sq(double a)
-	{
-		return a * a;
-	}
-
-	void quat_to_rpy(Quaterniond q, Matrix<double, 3, 1> &rpy)
-	{
-		double as = std::min(-2. * (q.x() * q.z() - q.w() * q.y()), .99999);
-		rpy(0) = atan2(2.0 * (q.x() * q.y() + q.w() * q.z()), sq(q.w()) + sq(q.x()) - sq(q.y()) - sq(q.z()));
-		rpy(1) = asin(as);
-		rpy(2) = atan2(2.0 * (q.y() * q.z() + q.w() * q.x()), sq(q.w()) - sq(q.x()) - sq(q.y()) + sq(q.z()));
-	}
 
 	Matrix<double, 3, 3> cross_mat(Matrix<double, 3, 3> I_inv, Matrix<double, 3, 1> r)
 	{

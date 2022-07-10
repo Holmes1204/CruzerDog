@@ -3,7 +3,7 @@ Robot my_robot(23.0, 0.2, 0.2, 0.1805, 0.1308, Eigen::Matrix3d::Zero());
 Robot::Robot(double mass_, double len_1, double len_2, double x_offset, double y_offset, Eigen::Matrix3<double> inerial)
 {
     mass = mass_;
-    L2 = len_1;
+    L1 = len_1;
     L2 = len_2;
     // each hip frame origin in body frame
     for (int leg_ = 0; leg_ < 4; leg_++)
@@ -33,7 +33,7 @@ Robot::~Robot()
 {
 }
 
-// forward_kinematic from  joint space to body frame
+// forward_kinematic from  joint space to hip frame
 Eigen::Vector3<double> Robot::forward_kinematic(Eigen::Vector3<double> q_, int leg_)
 {
     Eigen::Vector3<double> p_;
@@ -41,19 +41,22 @@ Eigen::Vector3<double> Robot::forward_kinematic(Eigen::Vector3<double> q_, int l
     double c1 = std::cos(q_(1));
     double s12 = std::sin(q_(1) + q_(2));
     double c12 = std::cos(q_(1) + q_(2));
-    p_.x() = this->hip_location[leg_].x() - this->L1 * s1 - this->L2 * s12;
-    p_.y() = this->hip_location[leg_].y();
-    p_.z() = this->hip_location[leg_].z() - this->L1 * c1 - this->L2 * c12;
+    // p_.x() = this->hip_location[leg_].x() - this->L1 * s1 - this->L2 * s12;
+    // p_.y() = this->hip_location[leg_].y();
+    // p_.z() = this->hip_location[leg_].z() - this->L1 * c1 - this->L2 * c12;
+    p_.x() = -this->L1 * s1 - this->L2 * s12;
+    p_.y() = 0.0f;
+    p_.z() = -this->L1 * c1 - this->L2 * c12;
     return p_;
 }
 
-// inverse_kinematic from body frame to joint space
+// inverse_kinematic from body frame to joint space.hip frame?
 Eigen::Vector3<double> Robot::inverse_kinematic(Eigen::Vector3<double> p_, int leg_)
 {
-    Eigen::Vector3<double> q_,foot_hip_frame;
+    Eigen::Vector3<double> q_, foot_hip_frame;
     q_.setZero();
-    foot_hip_frame = p_-hip_location[leg_];
-    
+    foot_hip_frame = p_ - hip_location[leg_];
+
     double c2 = (pow(foot_hip_frame.x(), 2) + pow(foot_hip_frame.z(), 2) - pow(this->L2, 2) - pow(this->L2, 2)) / (2 * this->L2 * this->L2);
     q_.z() = acos(c2);
     if (q_.z() > 0)
