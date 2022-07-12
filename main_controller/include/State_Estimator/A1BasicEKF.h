@@ -19,18 +19,18 @@ using namespace quad;
 struct StateEstimateResult
 {
     EIGEN_MAKE_ALIGNED_OPERATOR_NEW
-    Eigen::Vector4<double> contactEstimate;
-    Eigen::Vector3<double> position;
-    Eigen::Vector3<double> vBody;
+    Vec4<double> contactEstimate;
+    Vec3<double> position;
+    Vec3<double> vBody;
 
     Eigen::Quaternion<double> orientation;
-    Eigen::Vector3<double> omegaBody;
-    Eigen::Matrix3<double> rBody;
+    Vec3<double> omegaBody;
+    Mat3<double> rBody;
 
-    Eigen::Vector3<double> rpy;
-    Eigen::Vector3<double> omegaWorld;
-    Eigen::Vector3<double> vWorld;
-    Eigen::Vector3<double> aBody, aWorld;
+    Vec3<double> rpy;
+    Vec3<double> omegaWorld;
+    Vec3<double> vWorld;
+    Vec3<double> aBody, aWorld;
 };
 
 class FSM_data;

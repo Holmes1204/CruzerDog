@@ -1,8 +1,8 @@
 #include "Leg_Control/Gait.h"
 
 // Offset - Duration Gait
-OffsetDurationGait::OffsetDurationGait(int nSegment, Eigen::Vector4<int> offsets,
-                                       Eigen::Vector4<int> durations, const std::string &name)
+OffsetDurationGait::OffsetDurationGait(int nSegment, Vec4<int> offsets,
+                                       Vec4<int> durations, const std::string &name)
     : _offsets(offsets.array()),     //支撑相的开始时间，可推导摆动相位
       _durations(durations.array()), // duration 是指支撑相的长度
       _nIterations(nSegment)         // horizon length 也就是将一个步态周期分为n个，为了与MPC的周期相同，所以他俩长度一样
@@ -21,7 +21,7 @@ OffsetDurationGait::~OffsetDurationGait()
   delete[] _mpc_table;
 }
 
-Eigen::Vector4<double> OffsetDurationGait::getContactState()
+Vec4<double> OffsetDurationGait::getContactState()
 {
   Array4d progress = _phase - _offsetsDouble; //
 
@@ -46,7 +46,7 @@ Eigen::Vector4<double> OffsetDurationGait::getContactState()
   return progress.matrix();
 }
 
-Eigen::Vector4<double> OffsetDurationGait::getSwingState()
+Vec4<double> OffsetDurationGait::getSwingState()
 {
   Array4d swing_offset = _offsetsDouble + _durationsDouble;
   for (int i = 0; i < 4; i++)

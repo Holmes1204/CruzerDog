@@ -2,6 +2,7 @@
 #define PROJECT_GAIT_H
 #include <eigen3/Eigen/Dense>
 #include <string>
+#include <cpptypes.h>
 #include <queue>
 using Eigen::Array4d;
 using Eigen::Array4i;
@@ -11,8 +12,8 @@ class Gait
 public:
   virtual ~Gait() = default;
 
-  virtual Eigen::Vector4<double> getContactState() = 0;
-  virtual Eigen::Vector4<double> getSwingState() = 0;
+  virtual Vec4<double> getContactState() = 0;
+  virtual Vec4<double> getSwingState() = 0;
   virtual int *getMpcTable() = 0;
   virtual void setIterations(int iterationsBetweenMPC, int currentIteration) = 0;
   virtual double getCurrentStanceTime(double dtMPC, int leg) = 0;
@@ -28,10 +29,10 @@ class OffsetDurationGait : public Gait
 {
 public:
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
-  OffsetDurationGait(int nSegment, Eigen::Vector4<int> offset, Eigen::Vector4<int> durations, const std::string &name);
+  OffsetDurationGait(int nSegment, Vec4<int> offset, Vec4<int> durations, const std::string &name);
   ~OffsetDurationGait();
-  Eigen::Vector4<double> getContactState();
-  Eigen::Vector4<double> getSwingState();
+  Vec4<double> getContactState();
+  Vec4<double> getSwingState();
   int *getMpcTable();
   void setIterations(int iterationsBetweenMPC, int currentIteration);
   double getCurrentStanceTime(double dtMPC, int leg);

@@ -28,7 +28,8 @@ public:
 
 	Matrix<double, 12, 12> Bdt;
 	Matrix<double, 12, 12> Adt;
-	Vector<double, 12> Gdt;
+	Vec12<double> Gdt;
+
 	Matrix<double, 25, 25> ABc, expmm;
 	Matrix<double, 3, 4> r_feet_world;
 	Vec12<double> x_0;

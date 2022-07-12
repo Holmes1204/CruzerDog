@@ -1,6 +1,5 @@
 #include <Robot/Robot.h>
-Robot my_robot(23.0, 0.2, 0.2, 0.1805, 0.1308, Eigen::Matrix3d::Zero());
-Robot::Robot(double mass_, double len_1, double len_2, double x_offset, double y_offset, Eigen::Matrix3<double> inerial)
+Robot::Robot(double mass_, double len_1, double len_2, double x_offset, double y_offset, Mat3<double> inerial)
 {
     mass = mass_;
     L1 = len_1;
@@ -84,9 +83,9 @@ Vec3<double> Robot::inverse_kinematic(Vec3<double> p_, int leg_)
 }
 
 // calcualte jacobian matrix for each leg_
-Eigen::Matrix3<double> Robot::cal_jacobian(Vec3<double> q_, int leg_)
+Mat3<double> Robot::cal_jacobian(Vec3<double> q_, int leg_)
 {
-    Eigen::Matrix3<double> J;
+    Mat3<double> J;
     double s1 = std::sin(q_(1));
     double s2 = std::sin(q_(2));
     double c1 = std::cos(q_(1));

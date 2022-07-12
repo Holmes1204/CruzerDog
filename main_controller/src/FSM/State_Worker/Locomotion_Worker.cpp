@@ -6,7 +6,7 @@ Locomotion::Locomotion(FSM_data &data_, FSM_topic_control &tpcl)
 	  horizonLength(10),
 	  dt(0.002),
 	  iterationsBetweenMPC(10),
-	  trotting(horizonLength, Eigen::Vector4<int>(0, 2, 5, 7), Eigen::Vector4<int>(5, 5, 5, 5), "Trotting")
+	  trotting(horizonLength, Vec4<int>(0, 2, 5, 7), Vec4<int>(5, 5, 5, 5), "Trotting")
 {
 	dtMPC = dt * iterationsBetweenMPC;
 	mpc_solver = new MPC_SLOVER(1, dtMPC);
@@ -30,8 +30,8 @@ void Locomotion::run()
 	b_run();
 
 	/*
-	Eigen::Vector3<T> pDes_backup[4];
-	Eigen::Vector3<T> vDes_backup[4];
+	Vec3<T> pDes_backup[4];
+	Vec3<T> vDes_backup[4];
 	Eigen::Matrix3<T> Kp_backup[4];
 	Eigen::Matrix3<T> Kd_backup[4];
 
@@ -93,9 +93,9 @@ void Locomotion::b_run()
 
 	_x_vel_des = 5.0;
 	_y_vel_des = 0.0;
-	Eigen::Vector3<double> v_des_robot(_x_vel_des, _y_vel_des, 0);
-	Eigen::Vector3<double> v_des_world = seResult.rBody.transpose() * v_des_robot;
-	Eigen::Vector3<double> v_robot = seResult.vWorld;
+	Vec3<double> v_des_robot(_x_vel_des, _y_vel_des, 0);
+	Vec3<double> v_des_world = seResult.rBody.transpose() * v_des_robot;
+	Vec3<double> v_robot = seResult.vWorld;
 
 	if (firstRun)
 	{
@@ -170,7 +170,7 @@ void Locomotion::b_run()
 		// }
 	}
 
-	world_position_desired += dt * Eigen::Vector3<double>(v_des_world[0], v_des_world[1], 0);
+	world_position_desired += dt * Vec3<double>(v_des_world[0], v_des_world[1], 0);
 	// foot placement
 	for (int l = 0; l < 4; l++)
 		swingTimes[l] = gait->getCurrentSwingTime(dtMPC, l);
@@ -197,21 +197,21 @@ void Locomotion::b_run()
 
 		double stance_time = gait->getCurrentStanceTime(dtMPC, i);
 
-		Eigen::Vector3<double> des_vel;
+		Vec3<double> des_vel;
 		des_vel[0] = _x_vel_des;
 		des_vel[1] = _y_vel_des;
 		des_vel[2] = 0.0;
 		// P_foot findal,足端轨迹的最后值，在world frame下
-		// Eigen::Vector3<double> Pf = seResult.position +
+		// Vec3<double> Pf = seResult.position +
 		// 							seResult.rBody.transpose() *
 		// 								(data_._quadruped->getHipLocation(i) + des_vel * swingTimeRemaining[i]);
 
-		Eigen::Vector3<double> Pf =Vec3<double>(0.0, 0, -0.3);
+		Vec3<double> Pf =Vec3<double>(0.0, 0, -0.3);
 
 		//这个大概是30cm
 		// double p_rel_max = 0.15f;
 		// // Using the estimated velocity is correct
-		// // Eigen::Vector3<double> des_vel_world = seResult.rBody.transpose() * des_vel;
+		// // Vec3<double> des_vel_world = seResult.rBody.transpose() * des_vel;
 		// double pfx_rel = seResult.vWorld[0] * (.5) * stance_time +
 		// 				 .03f * (seResult.vWorld[0] - v_des_world[0]);
 
@@ -247,12 +247,12 @@ void Locomotion::b_run()
 	Kd_stance = Kd;
 	// gait
 
-	Eigen::Vector4<double> contactStates = gait->getContactState();
-	Eigen::Vector4<double> swingStates = gait->getSwingState();
+	Vec4<double> contactStates = gait->getContactState();
+	Vec4<double> swingStates = gait->getSwingState();
 
 	int *contact_state = gait->getMpcTable();
 	// updateMPCIfNeeded(contact_state);
-	Eigen::Vector4<double> se_contactState(0, 0, 0, 0);
+	Vec4<double> se_contactState(0, 0, 0, 0);
 
 	for (int foot = 0; foot < 4; foot++)
 	{
@@ -270,11 +270,11 @@ void Locomotion::b_run()
 			}
 			footSwingTrajectories[foot].computeSwingTrajectoryBezier(swingState, swingTimes[foot]);
 
-			Eigen::Vector3<double> pDesFootWorld = footSwingTrajectories[foot].getPosition();
-			Eigen::Vector3<double> vDesFootWorld = footSwingTrajectories[foot].getVelocity();
+			Vec3<double> pDesFootWorld = footSwingTrajectories[foot].getPosition();
+			Vec3<double> vDesFootWorld = footSwingTrajectories[foot].getVelocity();
 			// leg frame 的kp kd 控制
-			Eigen::Vector3<double> pDesLeg = seResult.rBody * (pDesFootWorld - seResult.position) - data_._quadruped->getHipLocation(foot);
-			Eigen::Vector3<double> vDesLeg = seResult.rBody * (vDesFootWorld - seResult.vWorld);
+			Vec3<double> pDesLeg = seResult.rBody * (pDesFootWorld - seResult.position) - data_._quadruped->getHipLocation(foot);
+			Vec3<double> vDesLeg = seResult.rBody * (vDesFootWorld - seResult.vWorld);
 
 			// Update for WBC
 			pFoot_des[foot] = pDesFootWorld;
@@ -296,10 +296,10 @@ void Locomotion::b_run()
 		else // foot is in stance
 		{
 			firstSwing[foot] = true;
-			Eigen::Vector3<double> pDesFootWorld = footSwingTrajectories[foot].getPosition();
-			Eigen::Vector3<double> vDesFootWorld = footSwingTrajectories[foot].getVelocity();
-			Eigen::Vector3<double> pDesLeg = seResult.rBody * (pDesFootWorld - seResult.position) - data_._quadruped->getHipLocation(foot);
-			Eigen::Vector3<double> vDesLeg = seResult.rBody * (vDesFootWorld - seResult.vWorld);
+			Vec3<double> pDesFootWorld = footSwingTrajectories[foot].getPosition();
+			Vec3<double> vDesFootWorld = footSwingTrajectories[foot].getVelocity();
+			Vec3<double> pDesLeg = seResult.rBody * (pDesFootWorld - seResult.position) - data_._quadruped->getHipLocation(foot);
+			Vec3<double> vDesLeg = seResult.rBody * (vDesFootWorld - seResult.vWorld);
 
 			data_._legController->command[foot].zero();
 			data_._legController->command[foot].q_Des = data_._quadruped->inverse_kinematic(pDesFootWorld, 0);
