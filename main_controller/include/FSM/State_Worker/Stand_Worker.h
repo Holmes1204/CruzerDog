@@ -1,8 +1,7 @@
 #ifndef _STAND_WORKER_
 #define _STAND_WORKER_
 #include "State_Worker.h"
-#include "eigen3/Eigen/Dense"
-#include <cpptypes.h>
+#include <eigen_types.h>
 #include <defination.h>
 using namespace quad;
 using namespace Eigen;

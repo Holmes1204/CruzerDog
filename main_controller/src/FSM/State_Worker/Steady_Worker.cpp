@@ -37,8 +37,7 @@ bool SteadyWorker::is_finished()
                       << data_._legController->data[i].p.transpose()
                       << std::endl;
         }
-        std::cout << "Steady State Over!\n"
-                  << std::endl;
+        std::cout << "Steady State Over!\n"<< std::endl;
         return true;
     }
     else

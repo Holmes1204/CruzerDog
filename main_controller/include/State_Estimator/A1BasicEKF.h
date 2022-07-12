@@ -1,7 +1,7 @@
 #ifndef A1_CPP_A1BASICEKF_H
 #define A1_CPP_A1BASICEKF_H
 #include <defination.h>
-#include <eigen3/Eigen/Dense>
+#include <eigen_types.h>
 #include <FSM/FSM_data.h>
 
 // state estimator parameters

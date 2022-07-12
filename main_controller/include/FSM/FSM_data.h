@@ -1,7 +1,7 @@
 #ifndef _FSM_DATA_
 #define _FSM_DATA_
 #include <ros/ros.h>
-#include <eigen3/Eigen/Dense>
+#include <eigen_types.h>
 #include <defination.h>
 #include <Robot/Robot.h>
 #include <Convex_MPC/MConvexMPC.h>
@@ -152,7 +152,8 @@ public:
     A1BasicEKF* model_StateEstimate;
     //Solver* mpc_solver;
     Robot* _quadruped;
-    
+    volatile int global_state_switch =0;
+    volatile int global_gait_switch=0;
     FSM_data();
     ~FSM_data();
 };

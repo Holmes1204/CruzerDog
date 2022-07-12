@@ -17,13 +17,21 @@ FSM_topic_control::~FSM_topic_control()
 void FSM_topic_control::Joy_Callback(const sensor_msgs::Joy &msg)
 {
         //复杂的控制逻辑源于对实现过程的精准把握
-        this->data_.state->command_vel.x() = msg.axes[4] * JOY_CMD_VELX_MAX;
+        this->data_.state->command_vel.x() = 0;
         this->data_.state->command_vel.y() = 0;
         this->data_.state->command_vel.z() = 0;
+        if (msg.buttons[0] == 1 && msg.buttons[1] == 1)
+        {
+                this->data_.global_state_switch++;
+        }
+        if (msg.buttons[3] == 1 && msg.buttons[4] == 1)
+        {
+                this->data_.global_gait_switch++;
+        }
+
         // Debug
-        system("clear");
-        std::cout << "v_x" << this->data_.state->command_vel.x() << std::endl
-                  << "v_y" << this->data_.state->command_vel.y() << std::endl;
+        // system("clear");
+        // std::cout << "v_x" << msg << std::endl;
 }
 // real
 void FSM_topic_control::em_fdb_callback(const wtr_serial_msg::em_fb_raw &msg)
@@ -148,13 +156,13 @@ void FSM_topic_control::unitree_sim_set_up()
 
         // joint publisher
         this->joint_sim_unitree_pub[0] = this->nh_.advertise<unitree_legged_msgs::MotorCmd>("/a1_8dof_gazebo/FL_thigh_controller/command", 1);
-        this->joint_sim_unitree_pub[1] = this->nh_.advertise<unitree_legged_msgs::MotorCmd>("/a1_8dof_gazebo/FL_calf_controller/command",  1);
+        this->joint_sim_unitree_pub[1] = this->nh_.advertise<unitree_legged_msgs::MotorCmd>("/a1_8dof_gazebo/FL_calf_controller/command", 1);
         this->joint_sim_unitree_pub[2] = this->nh_.advertise<unitree_legged_msgs::MotorCmd>("/a1_8dof_gazebo/FR_thigh_controller/command", 1);
-        this->joint_sim_unitree_pub[3] = this->nh_.advertise<unitree_legged_msgs::MotorCmd>("/a1_8dof_gazebo/FR_calf_controller/command",  1);
+        this->joint_sim_unitree_pub[3] = this->nh_.advertise<unitree_legged_msgs::MotorCmd>("/a1_8dof_gazebo/FR_calf_controller/command", 1);
         this->joint_sim_unitree_pub[4] = this->nh_.advertise<unitree_legged_msgs::MotorCmd>("/a1_8dof_gazebo/RL_thigh_controller/command", 1);
-        this->joint_sim_unitree_pub[5] = this->nh_.advertise<unitree_legged_msgs::MotorCmd>("/a1_8dof_gazebo/RL_calf_controller/command",  1);
+        this->joint_sim_unitree_pub[5] = this->nh_.advertise<unitree_legged_msgs::MotorCmd>("/a1_8dof_gazebo/RL_calf_controller/command", 1);
         this->joint_sim_unitree_pub[6] = this->nh_.advertise<unitree_legged_msgs::MotorCmd>("/a1_8dof_gazebo/RR_thigh_controller/command", 1);
-        this->joint_sim_unitree_pub[7] = this->nh_.advertise<unitree_legged_msgs::MotorCmd>("/a1_8dof_gazebo/RR_calf_controller/command",  1);
+        this->joint_sim_unitree_pub[7] = this->nh_.advertise<unitree_legged_msgs::MotorCmd>("/a1_8dof_gazebo/RR_calf_controller/command", 1);
         // subscriber
         this->imu_sim_unitree_sub = this->nh_.subscribe("/trunk_imu", 5, &FSM_topic_control::Imu_Callback, this);
         this->cheater_estimator_sub = this->nh_.subscribe("/gazebo/model_states", 5, &FSM_topic_control::cheater_estimator_callback, this);
@@ -163,13 +171,13 @@ void FSM_topic_control::unitree_sim_set_up()
         this->footForce_sim_unitree_sub[2] = this->nh_.subscribe("/visual/RR_foot_contact/the_force", 5, &FSM_topic_control::RRfootCallback, this);
         this->footForce_sim_unitree_sub[3] = this->nh_.subscribe("/visual/RL_foot_contact/the_force", 5, &FSM_topic_control::RLfootCallback, this);
         this->joint_sim_unitree_sub[0] = this->nh_.subscribe("/a1_8dof_gazebo/FL_thigh_controller/state", 1, &FSM_topic_control::FL_thigh_state_callback, this);
-        this->joint_sim_unitree_sub[1] = this->nh_.subscribe("/a1_8dof_gazebo/FL_calf_controller/state",  1, &FSM_topic_control::FL_calf_state_callback, this);
+        this->joint_sim_unitree_sub[1] = this->nh_.subscribe("/a1_8dof_gazebo/FL_calf_controller/state", 1, &FSM_topic_control::FL_calf_state_callback, this);
         this->joint_sim_unitree_sub[2] = this->nh_.subscribe("/a1_8dof_gazebo/FR_thigh_controller/state", 1, &FSM_topic_control::FR_thigh_state_callback, this);
-        this->joint_sim_unitree_sub[3] = this->nh_.subscribe("/a1_8dof_gazebo/FR_calf_controller/state",  1, &FSM_topic_control::FR_calf_state_callback, this);
+        this->joint_sim_unitree_sub[3] = this->nh_.subscribe("/a1_8dof_gazebo/FR_calf_controller/state", 1, &FSM_topic_control::FR_calf_state_callback, this);
         this->joint_sim_unitree_sub[4] = this->nh_.subscribe("/a1_8dof_gazebo/RL_thigh_controller/state", 1, &FSM_topic_control::RL_thigh_state_callback, this);
-        this->joint_sim_unitree_sub[5] = this->nh_.subscribe("/a1_8dof_gazebo/RL_calf_controller/state",  1, &FSM_topic_control::RL_calf_state_callback, this);
+        this->joint_sim_unitree_sub[5] = this->nh_.subscribe("/a1_8dof_gazebo/RL_calf_controller/state", 1, &FSM_topic_control::RL_calf_state_callback, this);
         this->joint_sim_unitree_sub[6] = this->nh_.subscribe("/a1_8dof_gazebo/RR_thigh_controller/state", 1, &FSM_topic_control::RR_thigh_state_callback, this);
-        this->joint_sim_unitree_sub[7] = this->nh_.subscribe("/a1_8dof_gazebo/RR_calf_controller/state",  1, &FSM_topic_control::RR_calf_state_callback, this);
+        this->joint_sim_unitree_sub[7] = this->nh_.subscribe("/a1_8dof_gazebo/RR_calf_controller/state", 1, &FSM_topic_control::RR_calf_state_callback, this);
 }
 
 void FSM_topic_control::unitree_sim_data_decode()
