@@ -10,6 +10,7 @@ int main(int argc, char **argv)
     FSM Finite_State_Machine(nh);
     // ros::AsyncSpinner spinner(12);
     Finite_State_Machine.build_ScheduleTable(
+        quad::STEADY,
         quad::STAND,
         quad::LOCOMOTION,
         quad::END);

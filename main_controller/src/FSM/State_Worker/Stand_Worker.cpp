@@ -18,11 +18,13 @@ void StandWorker::send()
 //不会一直卡在一个run中运行
 void StandWorker::run()
 {
-
     if (iter_run == 0)
     {
         for (int i = 0; i < 4; i++)
         {
+            f_0[i] = data_._legController->data[i].p; // hip frame
+            // f_0[i] = Vec3<double>(0, 0, -0.1);
+            f_t[i] = Vec3<double>(0, 0, -0.3);
         }
     }
 
@@ -39,8 +41,7 @@ void StandWorker::run()
         // std::cout<<0<<data_.leg[0].force.transpose()<<std::endl;
     }
     double percent;
-
-#define period 1000u
+#define period 200u // 2s
     if (iter_run < period)
     {
         percent = iter_run / double(period);
@@ -52,12 +53,9 @@ void StandWorker::run()
     for (int leg = 0; leg < 4; leg++)
     {
         data_._legController->command[leg].zero();
-        data_._legController->command[leg].q_Des(1) = 0.0f * (1 - percent) + targetPos[1] * percent;
-        data_._legController->command[leg].qd_Des(1) = 0;
+        data_._legController->command[leg].q_Des = this->data_._quadruped->inverse_kinematic(f_0[leg] * (1 - percent) + f_t[leg] * percent, 0);
         data_._legController->command[leg].kpJoint(1, 1) = 300;
         data_._legController->command[leg].kdJoint(1, 1) = 15;
-        data_._legController->command[leg].q_Des(2) = 0.0f * (1 - percent) + targetPos[2] * percent;
-        data_._legController->command[leg].qd_Des(2) = 0;
         data_._legController->command[leg].kpJoint(2, 2) = 300;
         data_._legController->command[leg].kdJoint(2, 2) = 15;
     }
@@ -78,13 +76,13 @@ void StandWorker::run()
     // }
     // this->iter_run += diter;
     tpcl_.unitree_sim_send_cmd();
-    this->iter_run ++;
+    this->iter_run++;
     return;
 }
 
 bool StandWorker::is_finished()
 {
-    if (iter_run > 1+period)
+    if (iter_run > 1 + period)
     {
         std::cout << "Stand finished!" << std::endl;
         // for (int i = 0; i < 4; i++)

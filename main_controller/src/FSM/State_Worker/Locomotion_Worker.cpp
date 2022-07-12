@@ -6,7 +6,7 @@ Locomotion::Locomotion(FSM_data &data_, FSM_topic_control &tpcl)
 	  horizonLength(10),
 	  dt(0.002),
 	  iterationsBetweenMPC(10),
-	  trotting(horizonLength, Eigen::Vector4<int>(0, 5, 5, 0), Eigen::Vector4<int>(5, 5, 5, 5), "Trotting")
+	  trotting(horizonLength, Eigen::Vector4<int>(0, 2, 5, 7), Eigen::Vector4<int>(5, 5, 5, 5), "Trotting")
 {
 	dtMPC = dt * iterationsBetweenMPC;
 	mpc_solver = new MPC_SLOVER(1, dtMPC);
@@ -105,9 +105,11 @@ void Locomotion::b_run()
 
 		for (int i = 0; i < 4; i++)
 		{
-			pFoot[i] = seResult.position +
-					   seResult.rBody.transpose() * (data_._quadruped->getHipLocation(i) +
-													 data_._legController->data[i].p); //此时的p应该是在hipframe下的
+			// pFoot[i] = seResult.position +
+			// 		   seResult.rBody.transpose() * (data_._quadruped->getHipLocation(i) +
+			// 										 data_._legController->data[i].p); //此时的p应该是在hipframe下的
+			pFoot[i] = data_._legController->data[i].p;
+			// footSwingTrajectories[i].setHeight(0.05);
 			footSwingTrajectories[i].setHeight(0.05);
 			footSwingTrajectories[i].setInitialPosition(pFoot[i]);
 			footSwingTrajectories[i].setFinalPosition(pFoot[i]);
@@ -144,9 +146,10 @@ void Locomotion::b_run()
 	// world frame 下足端轨迹
 	for (int i = 0; i < 4; i++)
 	{
-		pFoot[i] = seResult.position +
-				   seResult.rBody.transpose() *
-					   (data_._quadruped->getHipLocation(i) + data_._legController->data[i].p);
+		// pFoot[i] = seResult.position +
+		// 		   seResult.rBody.transpose() *
+		// 			   (data_._quadruped->getHipLocation(i) + data_._legController->data[i].p);
+		pFoot[i] = data_._legController->data[i].p;
 		// // debug
 		// {
 		// 	static uint32_t dbg_count = 0;
@@ -189,8 +192,8 @@ void Locomotion::b_run()
 			swingTimeRemaining[i] -= dt;
 		}
 		// if(firstSwing[i]) {
-		// footSwingTrajectories[i].setHeight(.05);
-		footSwingTrajectories[i].setHeight(.06);
+		// footSwingTrajectories[i].setHeight(.06);
+		footSwingTrajectories[i].setHeight(0.05);
 
 		double stance_time = gait->getCurrentStanceTime(dtMPC, i);
 
@@ -199,25 +202,27 @@ void Locomotion::b_run()
 		des_vel[1] = _y_vel_des;
 		des_vel[2] = 0.0;
 		// P_foot findal,足端轨迹的最后值，在world frame下
-		Eigen::Vector3<double> Pf = seResult.position +
-									seResult.rBody.transpose() *
-										(data_._quadruped->getHipLocation(i) + des_vel * swingTimeRemaining[i]);
+		// Eigen::Vector3<double> Pf = seResult.position +
+		// 							seResult.rBody.transpose() *
+		// 								(data_._quadruped->getHipLocation(i) + des_vel * swingTimeRemaining[i]);
+
+		Eigen::Vector3<double> Pf =Vec3<double>(0.0, 0, -0.3);
 
 		//这个大概是30cm
-		double p_rel_max = 0.15f;
-		// Using the estimated velocity is correct
-		// Eigen::Vector3<double> des_vel_world = seResult.rBody.transpose() * des_vel;
-		double pfx_rel = seResult.vWorld[0] * (.5) * stance_time +
-						 .03f * (seResult.vWorld[0] - v_des_world[0]);
+		// double p_rel_max = 0.15f;
+		// // Using the estimated velocity is correct
+		// // Eigen::Vector3<double> des_vel_world = seResult.rBody.transpose() * des_vel;
+		// double pfx_rel = seResult.vWorld[0] * (.5) * stance_time +
+		// 				 .03f * (seResult.vWorld[0] - v_des_world[0]);
 
-		double pfy_rel = seResult.vWorld[1] * .5 * stance_time * dtMPC +
-						 .03f * (seResult.vWorld[1] - v_des_world[1]);
+		// double pfy_rel = seResult.vWorld[1] * .5 * stance_time * dtMPC +
+		// 				 .03f * (seResult.vWorld[1] - v_des_world[1]);
 
-		pfx_rel = fminf(fmaxf(pfx_rel, -p_rel_max), p_rel_max);
-		pfy_rel = fminf(fmaxf(pfy_rel, -p_rel_max), p_rel_max);
-		Pf[0] += pfx_rel;
-		Pf[1] += pfy_rel;
-		Pf[2] = -0.003; //一定要慎重
+		// pfx_rel = fminf(fmaxf(pfx_rel, -p_rel_max), p_rel_max);
+		// pfy_rel = fminf(fmaxf(pfy_rel, -p_rel_max), p_rel_max);
+		// Pf[0] += pfx_rel;
+		// Pf[1] += pfy_rel;
+		// Pf[2] = -0.2; //一定要慎重
 		// Pf[2] = 0.0;
 		footSwingTrajectories[i].setFinalPosition(Pf);
 		// if(i==0)
@@ -231,9 +236,9 @@ void Locomotion::b_run()
 	iterationCounter++;
 
 	//此时stance的kp为零，不会因为位置的关系影响脚的回收工作，这个地方的PID要改
-	Kp << 500, 0, 0,
-		0, 500, 0,
-		0, 0, 500;
+	Kp << 300, 0, 0,
+		0, 300, 0,
+		0, 0, 300;
 	Kp_stance = 0 * Kp;
 
 	Kd << 15, 0, 0,
@@ -246,7 +251,7 @@ void Locomotion::b_run()
 	Eigen::Vector4<double> swingStates = gait->getSwingState();
 
 	int *contact_state = gait->getMpcTable();
-	updateMPCIfNeeded(contact_state);
+	// updateMPCIfNeeded(contact_state);
 	Eigen::Vector4<double> se_contactState(0, 0, 0, 0);
 
 	for (int foot = 0; foot < 4; foot++)
@@ -260,7 +265,8 @@ void Locomotion::b_run()
 			if (firstSwing[foot])
 			{
 				firstSwing[foot] = false;
-				footSwingTrajectories[foot].setInitialPosition(pFoot[foot]);
+				Vec3<double> p_init = Vec3<double>(0, 0, -0.3);
+				footSwingTrajectories[foot].setInitialPosition(p_init);
 			}
 			footSwingTrajectories[foot].computeSwingTrajectoryBezier(swingState, swingTimes[foot]);
 
@@ -277,10 +283,15 @@ void Locomotion::b_run()
 
 			// Update leg control command regardless of the usage of WBIC
 
+			data_._legController->command[foot].zero();
+			data_._legController->command[foot].q_Des = data_._quadruped->inverse_kinematic(pDesFootWorld, 0);
+			data_._legController->command[foot].kpJoint = Kp;
+			data_._legController->command[foot].kdJoint = Kd;
+
 			data_._legController->command[foot].p_Des = pDesLeg;
 			data_._legController->command[foot].v_Des = vDesLeg;
-			data_._legController->command[foot].kpCartesian = Kp;
-			data_._legController->command[foot].kdCartesian = Kd;
+			// data_._legController->command[foot].kpCartesian = Kp;
+			// data_._legController->command[foot].kdCartesian = Kd;
 		}
 		else // foot is in stance
 		{
@@ -290,12 +301,17 @@ void Locomotion::b_run()
 			Eigen::Vector3<double> pDesLeg = seResult.rBody * (pDesFootWorld - seResult.position) - data_._quadruped->getHipLocation(foot);
 			Eigen::Vector3<double> vDesLeg = seResult.rBody * (vDesFootWorld - seResult.vWorld);
 
+			data_._legController->command[foot].zero();
+			data_._legController->command[foot].q_Des = data_._quadruped->inverse_kinematic(pDesFootWorld, 0);
+			data_._legController->command[foot].kpJoint = Kp_stance;
+			data_._legController->command[foot].kdJoint = Kd_stance;
+
 			data_._legController->command[foot].p_Des = pDesLeg;
 			data_._legController->command[foot].v_Des = vDesLeg;
-			data_._legController->command[foot].kpCartesian = Kp_stance;
-			data_._legController->command[foot].kdCartesian = Kd_stance;
-			data_._legController->command[foot].force_FF = f_ff[foot];
-			data_._legController->command[foot].kdJoint = Eigen::Matrix3<double>::Identity() * 0.2;
+			// data_._legController->command[foot].kpCartesian = Kp_stance;
+			// data_._legController->command[foot].kdCartesian = Kd_stance;
+			// data_._legController->command[foot].force_FF = f_ff[foot];
+			// data_._legController->command[foot].kdJoint = Eigen::Matrix3<double>::Identity() * 0.2;
 			se_contactState[foot] = contactState;
 		}
 
@@ -308,20 +324,22 @@ void Locomotion::b_run()
 			{
 				system("clear");
 				std::cout
-					<< "foot_force 0" << std::endl
-					<< f_ff[0].transpose() << std::endl
-					<< "foot_force 1" << std::endl
-					<< f_ff[1].transpose() << std::endl
-					<< "foot_force 2" << std::endl
-					<< f_ff[2].transpose() << std::endl
-					<< "foot_force 3" << std::endl
-					<< f_ff[3].transpose() << std::endl
+					<< "q_Des_0" << std::endl
+					<< data_._legController->command[0].q_Des.transpose() << std::endl
+					<< "q_Des_1" << std::endl
+					<< data_._legController->command[1].q_Des.transpose() << std::endl
+					<< "q_Des_2" << std::endl
+					<< data_._legController->command[2].q_Des.transpose() << std::endl
+					<< "q_Des_3" << std::endl
+					<< data_._legController->command[foot].q_Des.transpose() << std::endl
+					// << "p" << std::endl
+					// << data_._legController->command[foot].p_Des.transpose() << std::endl
 					<< std::endl;
 				dbg_count = 0;
 			}
 			dbg_count++;
-			file << data_._legController->command[i].p_Des.transpose() << std::endl;
-			file << data_._legController->data[i].p.transpose() << std::endl;
+			// file << data_._legController->command[i].p_Des.transpose() << std::endl;
+			// file << data_._legController->data[i].p.transpose() << std::endl;
 		}
 	}
 }
