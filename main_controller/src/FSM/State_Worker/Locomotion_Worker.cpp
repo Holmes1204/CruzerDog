@@ -75,7 +75,7 @@ bool Locomotion::is_finished()
 	if (iterationCounter > 100 * iterationsBetweenMPC)
 	{
 		file.close();
-		return false;
+		return true;
 	}
 
 	return false;
@@ -316,31 +316,31 @@ void Locomotion::b_run()
 		}
 
 		// debug
-		{
+		// {
 
-			static uint32_t dbg_count = 0;
-			static int i = 0;
-			if (dbg_count % 20 == 0)
-			{
-				system("clear");
-				std::cout
-					<< "q_Des_0" << std::endl
-					<< data_._legController->command[0].q_Des.transpose() << std::endl
-					<< "q_Des_1" << std::endl
-					<< data_._legController->command[1].q_Des.transpose() << std::endl
-					<< "q_Des_2" << std::endl
-					<< data_._legController->command[2].q_Des.transpose() << std::endl
-					<< "q_Des_3" << std::endl
-					<< data_._legController->command[foot].q_Des.transpose() << std::endl
-					// << "p" << std::endl
-					// << data_._legController->command[foot].p_Des.transpose() << std::endl
-					<< std::endl;
-				dbg_count = 0;
-			}
-			dbg_count++;
-			// file << data_._legController->command[i].p_Des.transpose() << std::endl;
-			// file << data_._legController->data[i].p.transpose() << std::endl;
-		}
+		// 	static uint32_t dbg_count = 0;
+		// 	static int i = 0;
+		// 	if (dbg_count % 20 == 0)
+		// 	{
+		// 		system("clear");
+		// 		std::cout
+		// 			<< "q_Des_0" << std::endl
+		// 			<< data_._legController->command[0].q_Des.transpose() << std::endl
+		// 			<< "q_Des_1" << std::endl
+		// 			<< data_._legController->command[1].q_Des.transpose() << std::endl
+		// 			<< "q_Des_2" << std::endl
+		// 			<< data_._legController->command[2].q_Des.transpose() << std::endl
+		// 			<< "q_Des_3" << std::endl
+		// 			<< data_._legController->command[foot].q_Des.transpose() << std::endl
+		// 			// << "p" << std::endl
+		// 			// << data_._legController->command[foot].p_Des.transpose() << std::endl
+		// 			<< std::endl;
+		// 		dbg_count = 0;
+		// 	}
+		// 	dbg_count++;
+		// 	// file << data_._legController->command[i].p_Des.transpose() << std::endl;
+		// 	// file << data_._legController->data[i].p.transpose() << std::endl;
+		// }
 	}
 }
 

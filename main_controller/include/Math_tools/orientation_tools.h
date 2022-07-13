@@ -19,8 +19,7 @@
 #include <cmath>
 #include <iostream>
 #include <type_traits>
-#include <eigen3/Eigen/Dense>
-#include "cpptypes.h"
+#include <eigen_types.h>
 /*!
  * Square a number
  */

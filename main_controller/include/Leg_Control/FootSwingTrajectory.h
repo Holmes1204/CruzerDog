@@ -1,13 +1,13 @@
 #ifndef _FOOTSWINGTRAJECTORY_
 #define _FOOTSWINGTRAJECTORY_
 #include "Leg_Control/Interpolation.h"
-#include "eigen3/Eigen/Dense"
+#include <eigen_types.h>
 
 class FootSwingTrajectory
 {
 private:
 public:
-    Eigen::Vector3d _p0, _pf, _p, _v, _a;
+    Vec3<double> _p0, _pf, _p, _v, _a;
     double _height;
     /*!
      * Construct a new foot swing trajectory with everything set to zero
@@ -26,7 +26,7 @@ public:
      * Set the starting location of the foot
      * @param p0 : the initial foot position
      */
-    void setInitialPosition(Eigen::Vector3d p0)
+    void setInitialPosition(Vec3<double> p0)
     {
         _p0 = p0;
     }
@@ -35,7 +35,7 @@ public:
      * Set the desired final position of the foot
      * @param pf : the final foot posiiton
      */
-    void setFinalPosition(Eigen::Vector3d pf)
+    void setFinalPosition(Vec3<double> pf)
     {
         _pf = pf;
     }
@@ -108,7 +108,7 @@ public:
      * Get the foot position at the current point along the swing
      * @return : the foot position
      */
-    Eigen::Vector3d getPosition()
+    Vec3<double> getPosition()
     {
         return _p;
     }
@@ -117,7 +117,7 @@ public:
      * Get the foot velocity at the current point along the swing
      * @return : the foot velocity
      */
-    Eigen::Vector3d getVelocity()
+    Vec3<double> getVelocity()
     {
         return _v;
     }
@@ -126,7 +126,7 @@ public:
      * Get the foot acceleration at the current point along the swing
      * @return : the foot acceleration
      */
-    Eigen::Vector3d getAcceleration()
+    Vec3<double> getAcceleration()
     {
         return _a;
     }

@@ -1,8 +1,7 @@
 #ifndef PROJECT_GAIT_H
 #define PROJECT_GAIT_H
-#include <eigen3/Eigen/Dense>
 #include <string>
-#include <cpptypes.h>
+#include <eigen_types.h>
 #include <queue>
 using Eigen::Array4d;
 using Eigen::Array4i;

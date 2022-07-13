@@ -3,9 +3,7 @@
 #include <osqp/osqp.h>
 #include <ros/ros.h>
 #include <OsqpEigen/OsqpEigen.h>
-#include <eigen3/Eigen/Dense>
-#include <eigen3/Eigen/Eigenvalues>
-#include <eigen3/Eigen/Sparse>
+#include <eigen_types.h>
 #include <defination.h>
 #include <FSM/FSM_data.h>
 

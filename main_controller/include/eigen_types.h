@@ -1,12 +1,5 @@
-/*! @file cpptypes.h
- *  @brief Common types that are only valid in C++
- *
- *  This file contains types which are only used in C++ code.  This includes
- * Eigen types, template types, aliases, ...
- */
-
-#ifndef _CPP_TYPES_
-#define _CPP_TYPES_
+#ifndef _EIGEN_TYPES_
+#define _EIGEN_TYPES_
 #include <vector>
 #include <eigen3/Eigen/Dense>
 // Rotation Matrix
@@ -114,4 +107,4 @@ template <typename T>
 using vectorAligned = typename std::vector<T, Eigen::aligned_allocator<T>>;
 
 
-#endif  // _CPP_TYPES_
+#endif  // _EIGEN_TYPES_

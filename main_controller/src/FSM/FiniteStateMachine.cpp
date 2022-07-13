@@ -67,12 +67,13 @@ void FSM::build_ScheduleTable(int Schedule, ...)
 
 void FSM::loop()
 {
-    // this->global_data.state->plan_dt = 0.01;
-    /*! running the schedule table */
-
-    if (this->Workers[this->flow]->is_finished())
+    //只有当切换状态使能时才可以切换
+    //is_finished 确保了在完成目标后应该如何处理状况
+    if (this->Workers[this->flow]->is_finished()&&global_data.global_state_switch>0)
     {
+        global_data.global_state_switch=0;
         this->flow++;
+        std::cout<<"enable_switch,next_state "<<this->flow<<std::endl;
         if (this->flow == this->Workers.size())
         {
             ROS_INFO("Finish ScheduleTable");

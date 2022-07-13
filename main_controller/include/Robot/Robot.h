@@ -1,11 +1,10 @@
 #ifndef _ROBOT_MODEL_
 #define _ROBOT_MODEL_
 
-#include <eigen3/Eigen/Dense>
 #include <defination.h>
 #include <vector>
 #include <FSM/FSM_data.h>
-#include <cpptypes.h>
+#include <eigen_types.h>
 using namespace quad;
 
 //Model for 8DOF ROBOT

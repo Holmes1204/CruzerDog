@@ -5,10 +5,9 @@
 #include "FSM/FSM_tpcl.h"
 #include "Leg_Control/FootSwingTrajectory.h"
 #include "Leg_Control/Gait.h"
-#include <eigen3/Eigen/Dense>
 #include <fstream>
 #include <iostream>
-#include <cpptypes.h>
+#include <eigen_types.h>
 
 class Locomotion : public StateWorker
 {

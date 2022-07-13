@@ -1,7 +1,6 @@
 #ifndef _LEG_CONTROL_
 #define _LEG_CONTROL_
-#include <eigen3/Eigen/Dense>
-#include <cpptypes.h>
+#include <eigen_types.h>
 struct LegControllerData {
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
   LegControllerData() { zero(); }

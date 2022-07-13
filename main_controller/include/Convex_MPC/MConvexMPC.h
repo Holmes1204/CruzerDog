@@ -1,12 +1,11 @@
 #ifndef _MCONVEX_MPC_
 #define _MCONVEX_MPC_
-#include <eigen3/Eigen/Dense>
 #include <cmath>
 #include <eigen3/unsupported/Eigen/MatrixFunctions>
 #include <OsqpEigen/OsqpEigen.h>
 #include <stdio.h>
 #include <sys/time.h>
-#include <cpptypes.h>
+#include <eigen_types.h>
 //#define K_PRINT_EVERYTHING
 using namespace Eigen;
 using namespace OsqpEigen;

@@ -1,5 +1,4 @@
 #include <State_Estimator/state_estimator.h>
-#include <eigen3/Eigen/Dense>
 
 StateEstimate::StateEstimate()
 {
