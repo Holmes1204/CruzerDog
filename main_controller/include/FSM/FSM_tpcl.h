@@ -26,8 +26,8 @@ class FSM_topic_control
 private:
 public:
     FSM_data &data_;
-    ros::NodeHandle &nh_;
-    FSM_topic_control(ros::NodeHandle &nh, FSM_data &data);
+    ros::NodeHandle nh_;
+    FSM_topic_control(FSM_data &data);
     ~FSM_topic_control();
     // joy
     ros::Subscriber joy_sub_;

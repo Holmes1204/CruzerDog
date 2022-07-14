@@ -14,9 +14,9 @@ inline T limit(T val_,T lower_bound, T upper_bound){
         return (val_>lower_bound)?(val_<upper_bound?val_:upper_bound):lower_bound;
 };
 
-FSM_topic_control::FSM_topic_control(ros::NodeHandle &nh, FSM_data &data) : nh_(nh), data_(data)
+FSM_topic_control::FSM_topic_control(FSM_data &data):data_(data)
 {
-        this->joy_sub_ = this->joy_sub_ = this->nh_.subscribe("/joy", 2, &FSM_topic_control::Joy_Callback, this);
+        this->joy_sub_ = this->nh_.subscribe("/joy", 2, &FSM_topic_control::Joy_Callback, this);
         this->em_cmd_pub_ = this->nh_.advertise<wtr_serial_msg::em_ev>("/em_ev", 1);
         this->em_fdb_sub_ = this->nh_.subscribe("/em_fb_raw", 2, &FSM_topic_control::em_fdb_callback, this);
         unitree_sim_set_up();

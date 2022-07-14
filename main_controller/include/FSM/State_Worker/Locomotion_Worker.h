@@ -1,6 +1,6 @@
 #ifndef _LOCOMOTION_WORKER_
 #define _LOCOMOTION_WORKER_
-#include "State_Worker.h"
+#include <FSM/FSM_state.h>
 #include "FSM/FSM_data.h"
 #include "FSM/FSM_tpcl.h"
 #include "Leg_Control/FootSwingTrajectory.h"
@@ -9,7 +9,7 @@
 #include <iostream>
 #include <eigen_types.h>
 
-class Locomotion : public StateWorker
+class Locomotion : public FSM_State
 {
 private:
 public:
@@ -18,8 +18,6 @@ public:
     // ConvexMPCLocomotion* cMPCOld;
     // WBC_Ctrl<T> * _wbc_ctrl;
     // LocomotionCtrlData<T> * _wbc_data;
-    FSM_data &data_;
-    FSM_topic_control &tpcl_;
     MPC_SLOVER *mpc_solver;
     int iterationsBetweenMPC;
     int horizonLength;
@@ -81,13 +79,15 @@ public:
     OffsetDurationGait trotting;
 
     //
-
-    virtual void send();
     virtual void run();
-    virtual bool is_finished();
+    virtual void onEnter();
+    virtual void onExit();
+    virtual FSM_StateName checkTransition();
+    virtual TransitionData transition();
+
     void b_run();
     void updateMPCIfNeeded(int *mpcTable);
-    Locomotion(FSM_data &data, FSM_topic_control &tpcl);
+    Locomotion(FSM_data *data);
     ~Locomotion();
 };
 

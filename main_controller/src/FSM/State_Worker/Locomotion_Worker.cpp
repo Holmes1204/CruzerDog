@@ -1,8 +1,7 @@
 #include <FSM/State_Worker/Locomotion_Worker.h>
 
-Locomotion::Locomotion(FSM_data &data_, FSM_topic_control &tpcl)
-	: data_(data_),
-	  tpcl_(tpcl),
+Locomotion::Locomotion(FSM_data *data)
+	: FSM_State(data, FSM_StateName::LOCOMOTION, "Locomotion"),
 	  horizonLength(10),
 	  dt(0.002),
 	  iterationsBetweenMPC(10),
@@ -10,13 +9,18 @@ Locomotion::Locomotion(FSM_data &data_, FSM_topic_control &tpcl)
 {
 	dtMPC = dt * iterationsBetweenMPC;
 	mpc_solver = new MPC_SLOVER(1, dtMPC);
-	std::cout << "locomotion initial" << std::endl;
+	// std::cout << "locomotion initial" << std::endl;
 	// file.open("path.csv");
 	// Initialize GRF and footstep locations to 0s
 	// this->footFeedForwardForces = Mat34<T>::Zero();
 	this->r_foot_world = Mat34<double>::Zero();
 	//_wbc_ctrl = new LocomotionCtrl<T>(_controlFSMData->_quadruped->buildModel());
 	//_wbc_data = new LocomotionCtrlData<T>();
+}
+
+Locomotion::~Locomotion()
+{
+	delete mpc_solver;
 }
 
 /**
@@ -66,30 +70,34 @@ void Locomotion::run()
 	  this->_data->_legController->command[leg].kdCartesian = Kd_backup[leg];
 	}
 	*/
-
-	tpcl_.unitree_sim_send_cmd();
 }
 
-bool Locomotion::is_finished()
+void Locomotion::onExit()
 {
-	if (iterationCounter > 100 * iterationsBetweenMPC)
-	{
-		file.close();
-		return true;
-	}
-
-	return false;
+	std::cout << "Locomotion finished!" << std::endl;
 }
-void Locomotion::send()
-{
 
-	return;
+void Locomotion::onEnter()
+{
+	std::cout << "Locomotion start!" << std::endl;
+}
+
+FSM_StateName Locomotion::checkTransition()
+{
+	return FSM_StateName::LOCOMOTION;
+}
+
+// Runs the transition behaviors and returns true when done transitioning
+TransitionData Locomotion::transition()
+{
+	transitionData.done = true;
+	return transitionData;
 }
 
 void Locomotion::b_run()
 {
 	// some first time initialization
-	auto &seResult = data_.model_StateEstimate->getResult();
+	auto &seResult = data_->model_StateEstimate->getResult();
 
 	_x_vel_des = 5.0;
 	_y_vel_des = 0.0;
@@ -106,9 +114,9 @@ void Locomotion::b_run()
 		for (int i = 0; i < 4; i++)
 		{
 			// pFoot[i] = seResult.position +
-			// 		   seResult.rBody.transpose() * (data_._quadruped->getHipLocation(i) +
-			// 										 data_._legController->data[i].p); //此时的p应该是在hipframe下的
-			pFoot[i] = data_._legController->data[i].p;
+			// 		   seResult.rBody.transpose() * (data_->_quadruped->getHipLocation(i) +
+			// 										 data_->_legController->data[i].p); //此时的p应该是在hipframe下的
+			pFoot[i] = data_->_legController->data[i].p;
 			// footSwingTrajectories[i].setHeight(0.05);
 			footSwingTrajectories[i].setHeight(0.05);
 			footSwingTrajectories[i].setInitialPosition(pFoot[i]);
@@ -148,8 +156,8 @@ void Locomotion::b_run()
 	{
 		// pFoot[i] = seResult.position +
 		// 		   seResult.rBody.transpose() *
-		// 			   (data_._quadruped->getHipLocation(i) + data_._legController->data[i].p);
-		pFoot[i] = data_._legController->data[i].p;
+		// 			   (data_->_quadruped->getHipLocation(i) + data_->_legController->data[i].p);
+		pFoot[i] = data_->_legController->data[i].p;
 		// // debug
 		// {
 		// 	static uint32_t dbg_count = 0;
@@ -204,9 +212,9 @@ void Locomotion::b_run()
 		// P_foot findal,足端轨迹的最后值，在world frame下
 		// Vec3<double> Pf = seResult.position +
 		// 							seResult.rBody.transpose() *
-		// 								(data_._quadruped->getHipLocation(i) + des_vel * swingTimeRemaining[i]);
+		// 								(data_->_quadruped->getHipLocation(i) + des_vel * swingTimeRemaining[i]);
 
-		Vec3<double> Pf =Vec3<double>(0.0, 0, -0.3);
+		Vec3<double> Pf = Vec3<double>(0.0, 0, -0.3);
 
 		//这个大概是30cm
 		// double p_rel_max = 0.15f;
@@ -258,7 +266,7 @@ void Locomotion::b_run()
 	{
 		double contactState = contactStates[foot];
 		double swingState = swingStates[foot];
-		data_._legController->command[foot].zero();
+		data_->_legController->command[foot].zero();
 		f_ff[foot] = -seResult.rBody.transpose() * Fr_des.segment(foot * 3, 3);
 		if (swingState > 0) // foot is in swing
 		{
@@ -273,7 +281,7 @@ void Locomotion::b_run()
 			Vec3<double> pDesFootWorld = footSwingTrajectories[foot].getPosition();
 			Vec3<double> vDesFootWorld = footSwingTrajectories[foot].getVelocity();
 			// leg frame 的kp kd 控制
-			Vec3<double> pDesLeg = seResult.rBody * (pDesFootWorld - seResult.position) - data_._quadruped->getHipLocation(foot);
+			Vec3<double> pDesLeg = seResult.rBody * (pDesFootWorld - seResult.position) - data_->_quadruped->getHipLocation(foot);
 			Vec3<double> vDesLeg = seResult.rBody * (vDesFootWorld - seResult.vWorld);
 
 			// Update for WBC
@@ -283,35 +291,35 @@ void Locomotion::b_run()
 
 			// Update leg control command regardless of the usage of WBIC
 
-			data_._legController->command[foot].zero();
-			data_._legController->command[foot].q_Des = data_._quadruped->inverse_kinematic(pDesFootWorld, 0);
-			data_._legController->command[foot].kpJoint = Kp;
-			data_._legController->command[foot].kdJoint = Kd;
+			data_->_legController->command[foot].zero();
+			data_->_legController->command[foot].q_Des = data_->_quadruped->inverse_kinematic(pDesFootWorld, 0);
+			data_->_legController->command[foot].kpJoint = Kp;
+			data_->_legController->command[foot].kdJoint = Kd;
 
-			data_._legController->command[foot].p_Des = pDesLeg;
-			data_._legController->command[foot].v_Des = vDesLeg;
-			// data_._legController->command[foot].kpCartesian = Kp;
-			// data_._legController->command[foot].kdCartesian = Kd;
+			data_->_legController->command[foot].p_Des = pDesLeg;
+			data_->_legController->command[foot].v_Des = vDesLeg;
+			// data_->_legController->command[foot].kpCartesian = Kp;
+			// data_->_legController->command[foot].kdCartesian = Kd;
 		}
 		else // foot is in stance
 		{
 			firstSwing[foot] = true;
 			Vec3<double> pDesFootWorld = footSwingTrajectories[foot].getPosition();
 			Vec3<double> vDesFootWorld = footSwingTrajectories[foot].getVelocity();
-			Vec3<double> pDesLeg = seResult.rBody * (pDesFootWorld - seResult.position) - data_._quadruped->getHipLocation(foot);
+			Vec3<double> pDesLeg = seResult.rBody * (pDesFootWorld - seResult.position) - data_->_quadruped->getHipLocation(foot);
 			Vec3<double> vDesLeg = seResult.rBody * (vDesFootWorld - seResult.vWorld);
 
-			data_._legController->command[foot].zero();
-			data_._legController->command[foot].q_Des = data_._quadruped->inverse_kinematic(pDesFootWorld, 0);
-			data_._legController->command[foot].kpJoint = Kp_stance;
-			data_._legController->command[foot].kdJoint = Kd_stance;
+			data_->_legController->command[foot].zero();
+			data_->_legController->command[foot].q_Des = data_->_quadruped->inverse_kinematic(pDesFootWorld, 0);
+			data_->_legController->command[foot].kpJoint = Kp_stance;
+			data_->_legController->command[foot].kdJoint = Kd_stance;
 
-			data_._legController->command[foot].p_Des = pDesLeg;
-			data_._legController->command[foot].v_Des = vDesLeg;
-			// data_._legController->command[foot].kpCartesian = Kp_stance;
-			// data_._legController->command[foot].kdCartesian = Kd_stance;
-			// data_._legController->command[foot].force_FF = f_ff[foot];
-			// data_._legController->command[foot].kdJoint = Eigen::Matrix3<double>::Identity() * 0.2;
+			data_->_legController->command[foot].p_Des = pDesLeg;
+			data_->_legController->command[foot].v_Des = vDesLeg;
+			// data_->_legController->command[foot].kpCartesian = Kp_stance;
+			// data_->_legController->command[foot].kdCartesian = Kd_stance;
+			// data_->_legController->command[foot].force_FF = f_ff[foot];
+			// data_->_legController->command[foot].kdJoint = Eigen::Matrix3<double>::Identity() * 0.2;
 			se_contactState[foot] = contactState;
 		}
 
@@ -325,21 +333,21 @@ void Locomotion::b_run()
 		// 		system("clear");
 		// 		std::cout
 		// 			<< "q_Des_0" << std::endl
-		// 			<< data_._legController->command[0].q_Des.transpose() << std::endl
+		// 			<< data_->_legController->command[0].q_Des.transpose() << std::endl
 		// 			<< "q_Des_1" << std::endl
-		// 			<< data_._legController->command[1].q_Des.transpose() << std::endl
+		// 			<< data_->_legController->command[1].q_Des.transpose() << std::endl
 		// 			<< "q_Des_2" << std::endl
-		// 			<< data_._legController->command[2].q_Des.transpose() << std::endl
+		// 			<< data_->_legController->command[2].q_Des.transpose() << std::endl
 		// 			<< "q_Des_3" << std::endl
-		// 			<< data_._legController->command[foot].q_Des.transpose() << std::endl
+		// 			<< data_->_legController->command[foot].q_Des.transpose() << std::endl
 		// 			// << "p" << std::endl
-		// 			// << data_._legController->command[foot].p_Des.transpose() << std::endl
+		// 			// << data_->_legController->command[foot].p_Des.transpose() << std::endl
 		// 			<< std::endl;
 		// 		dbg_count = 0;
 		// 	}
 		// 	dbg_count++;
-		// 	// file << data_._legController->command[i].p_Des.transpose() << std::endl;
-		// 	// file << data_._legController->data[i].p.transpose() << std::endl;
+		// 	// file << data_->_legController->command[i].p_Des.transpose() << std::endl;
+		// 	// file << data_->_legController->data[i].p.transpose() << std::endl;
 		// }
 	}
 }
@@ -349,12 +357,12 @@ void Locomotion::updateMPCIfNeeded(int *mpcTable)
 	// iterationsBetweenMPC = 30;
 	if ((iterationCounter % iterationsBetweenMPC) == 0)
 	{
-		auto seResult = data_.model_StateEstimate->getResult();
+		auto seResult = data_->model_StateEstimate->getResult();
 		double *p = seResult.position.data();
 
 		for (int leg = 0; leg < 4; leg++)
 		{
-			r_foot_world.col(leg) = seResult.rBody.transpose() * (data_._quadruped->getHipLocation(leg) + data_._legController->data[leg].p);
+			r_foot_world.col(leg) = seResult.rBody.transpose() * (data_->_quadruped->getHipLocation(leg) + data_->_legController->data[leg].p);
 		}
 
 		Vec12<double> x_0;
@@ -370,7 +378,7 @@ void Locomotion::updateMPCIfNeeded(int *mpcTable)
 			double trajInitial[12] = {
 				_roll_des,
 				_pitch_des /*-hw_i->state_estimator->se_ground_pitch*/,
-				(double)stand_traj[5] /*+(double)stateCommand->data_.stateDes[11]*/,
+				(double)stand_traj[5] /*+(double)stateCommand->data_->stateDes[11]*/,
 				(double)stand_traj[0] /*+(double)fsm->main_control_settings.p_des[0]*/,
 				(double)stand_traj[1] /*+(double)fsm->main_control_settings.p_des[1]*/,
 				(double)_body_height /*fsm->main_control_settings.p_des[2]*/,

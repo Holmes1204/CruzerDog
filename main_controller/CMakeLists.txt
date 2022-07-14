@@ -43,13 +43,16 @@ add_executable(
         src/main_ctrl.cpp
         # src/test.cpp
         src/Math_tools/orientation_tools.cpp
-        src/FSM/FiniteStateMachine.cpp
+        src/FSM/FSM_ctrl.cpp
         src/FSM/FSM_data.cpp
         src/FSM/FSM_tpcl.cpp
-        src/FSM/State_Worker/State_Worker.cpp
+        src/FSM/FSM_state.cpp
+        src/FSM/safety_check.cpp
+
         src/FSM/State_Worker/Stand_Worker.cpp
         src/FSM/State_Worker/Steady_Worker.cpp
         src/FSM/State_Worker/Locomotion_Worker.cpp
+        
         src/Leg_Control/Foot_Swing_Trajectory.cpp
         src/Leg_Control/Gait.cpp
         src/Leg_Control/Leg_Control.cpp

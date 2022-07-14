@@ -14,6 +14,7 @@ public:
     EIGEN_MAKE_ALIGNED_OPERATOR_NEW
     double mass;//机器人总的质量，而非单独躯干的质量,Kg
     double L1,L2;//L1 thigh(mid) 和 calf(down)电机转轴的距离，L2是calf电机转轴到足端中心点的距离,metre
+    double _maxLegLength;
     Mat3<double> inertial_tensor;//kg*m^2
     Vec3<double> hip_location[4];//metre, in body frame
     Vec3<double> CoM;//机器人的质量中心,metre, in body frame

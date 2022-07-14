@@ -1,6 +1,7 @@
 #include <FSM/State_Worker/Steady_Worker.h>
 
-SteadyWorker::SteadyWorker(FSM_data &data, FSM_topic_control &tpcl) : data_(data), tpcl_(tpcl)
+SteadyWorker::SteadyWorker(FSM_data *data)
+    : FSM_State(data, FSM_StateName::STEADY, "STEADY")
 {
     this->iter_run = 0;
     this->iter_time_ms = 0.0f;
@@ -13,41 +14,37 @@ SteadyWorker::~SteadyWorker()
 {
 }
 
+void SteadyWorker::onExit()
+{
+    std::cout<<"steady finished!"<<std::endl;
+}
+
+void SteadyWorker::onEnter()
+{
+    std::cout<<"steady start!"<<std::endl;
+}
 //不会一直卡在一个run中运行
 void SteadyWorker::run()
 {
-    //check all state
+    // check all state
     this->iter_run++;
     return;
 }
 
-void SteadyWorker::send()
+//各个状态的切换，
+FSM_StateName SteadyWorker::checkTransition()
 {
+    if (1)
+    {
+        return FSM_StateName::STAND_UP;
+    }else{
+        return FSM_StateName::STEADY;
+    }
 }
 
-bool SteadyWorker::is_finished()
+// Runs the transition behaviors and returns true when done transitioning
+TransitionData SteadyWorker::transition()
 {
-    if (iter_run > 800)
-    {
-        if (!switch_conditon_check)
-        {
-            for (int i = 0; i < 4; i++)
-            {
-                std::cout << "leg" << i << " -------------- " << std::endl;
-                std::cout << "q" << std::endl
-                          << data_._legController->data[i].q.transpose() << std::endl
-                          << "p" << std::endl
-                          << data_._legController->data[i].p.transpose()
-                          << std::endl;
-            }
-            std::cout << "Steady State Over!\n"
-                      << std::endl;
-            switch_conditon_check =true;
-        }
-        return true;
-    }
-    else
-    {
-        return false;
-    }
+    transitionData.done = true;
+    return transitionData;
 }

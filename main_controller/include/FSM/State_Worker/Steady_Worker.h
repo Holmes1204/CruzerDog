@@ -1,24 +1,25 @@
 #ifndef _STEADY_WORKER_
 #define _STEADY_WORKER_
 
-#include "State_Worker.h"
+#include <FSM/FSM_state.h>
 
-class SteadyWorker: public StateWorker{
-private:
-
+class SteadyWorker : public FSM_State
+{
 public:
     uint32_t iter_run;
     double iter_time_ms;
-    double init_motor_angle[4][2]={{-1.44121 ,2.87804},{ 1.43246,-2.88679},{-1.44121 ,2.87804},{ 1.43246,-2.88679}};
-    bool switch_conditon_check=false;
-    FSM_data &data_;
-    FSM_topic_control &tpcl_;
-    virtual void send();
-    virtual void run();
-    virtual bool is_finished();
-    SteadyWorker(FSM_data &data,FSM_topic_control &tpcl);
-    ~SteadyWorker();
-};
+    double init_motor_angle[4][2] = {{-1.44121, 2.87804}, {1.43246, -2.88679}, {-1.44121, 2.87804}, {1.43246, -2.88679}};
+    bool switch_conditon_check = false;
 
+    virtual void run();
+    virtual void onEnter();
+    virtual void onExit();
+    virtual FSM_StateName checkTransition();
+    virtual TransitionData transition();
+
+    SteadyWorker(FSM_data *data);
+    ~SteadyWorker();
+private:
+};
 
 #endif

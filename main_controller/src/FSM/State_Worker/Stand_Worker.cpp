@@ -1,7 +1,7 @@
 #include "FSM/State_Worker/Stand_Worker.h"
-#include <Convex_MPC/ConvexMPC.h>
 
-StandWorker::StandWorker(FSM_data &data, FSM_topic_control &tpcl) : data_(data), tpcl_(tpcl)
+StandWorker::StandWorker(FSM_data *data)
+    : FSM_State(data, FSM_StateName::STAND_UP, "STAND_UP")
 {
     this->iter_run = 0;
     this->iter_time_ms = 0.0f;
@@ -9,21 +9,48 @@ StandWorker::StandWorker(FSM_data &data, FSM_topic_control &tpcl) : data_(data),
 
 StandWorker::~StandWorker()
 {
+
 }
 
-void StandWorker::send()
+void StandWorker::onExit()
 {
+    std::cout<<"steady finished!"<<std::endl;
 }
 
+void StandWorker::onEnter()
+{
+    std::cout<<"stand start!"<<std::endl;
+}
+
+FSM_StateName StandWorker::checkTransition()
+{
+
+    if (1)
+    {
+        return FSM_StateName::LOCOMOTION;
+    }else
+    {
+        return FSM_StateName::STEADY;
+    }
+    
+
+}
+
+// Runs the transition behaviors and returns true when done transitioning
+TransitionData StandWorker::transition()
+{
+    transitionData.done = true;
+    return transitionData;
+}
 //不会一直卡在一个run中运行
 void StandWorker::run()
 {
     if (iter_run == 0)
     {
-        data_._legController->motor_enable = 1;
+        data_->_legController->motor_enable = 1;
         for (int i = 0; i < 4; i++)
         {
-            // f_0[i] = data_._legController->data[i].p; // hip frame
+            // f_0[i] = data_->_legController->data[i].p; // hip frame
             f_0[i] = Vec3<double>(0, 0, -0.1);
             f_t[i] = Vec3<double>(0, 0, -0.3);
         }
@@ -41,17 +68,17 @@ void StandWorker::run()
             for (int i = 0; i < 1; i++)
             {
                 std::cout << "leg" << i << std::endl;
-                std::cout << "state" << data_._legController->motor_enable << std::endl;
+                std::cout << "state" << data_->_legController->motor_enable << std::endl;
                 std::cout << "J " << std::endl
-                          << data_._legController->data[i].J << std::endl;
+                          << data_->_legController->data[i].J << std::endl;
                 std::cout << "q " << std::endl
-                          << data_._legController->data[i].q.transpose() << "\n"
+                          << data_->_legController->data[i].q.transpose() << "\n"
                           << "d " << std::endl
-                          << data_._legController->data[i].qd.transpose() << std::endl;
+                          << data_->_legController->data[i].qd.transpose() << std::endl;
                 std::cout << "p " << std::endl
-                          << data_._legController->data[i].p.transpose() << "\n"
+                          << data_->_legController->data[i].p.transpose() << "\n"
                           << "v " << std::endl
-                          << data_._legController->data[i].v.transpose() << std::endl;
+                          << data_->_legController->data[i].v.transpose() << std::endl;
                 dbg_count = 0;
             }
         }
@@ -69,12 +96,12 @@ void StandWorker::run()
     }
     for (int leg = 0; leg < 4; leg++)
     {
-        data_._legController->command[leg].zero();
-        data_._legController->command[leg].q_Des = this->data_._quadruped->inverse_kinematic(f_0[leg] * (1 - percent) + f_t[leg] * percent, 0);
-        data_._legController->command[leg].kpJoint(1, 1) = 50;
-        data_._legController->command[leg].kdJoint(1, 1) = .5;
-        data_._legController->command[leg].kpJoint(2, 2) = 50;
-        data_._legController->command[leg].kdJoint(2, 2) = .5;
+        data_->_legController->command[leg].zero();
+        data_->_legController->command[leg].q_Des = this->data_->_quadruped->inverse_kinematic(f_0[leg] * (1 - percent) + f_t[leg] * percent, 0);
+        data_->_legController->command[leg].kpJoint(1, 1) = 50;
+        data_->_legController->command[leg].kdJoint(1, 1) = .5;
+        data_->_legController->command[leg].kpJoint(2, 2) = 50;
+        data_->_legController->command[leg].kdJoint(2, 2) = .5;
     }
     static int diter = -1;
     if (iter_run > period)
@@ -92,30 +119,6 @@ void StandWorker::run()
         }
     }
     this->iter_run += diter;
-    // tpcl_.unitree_sim_send_cmd();
-    tpcl_.em_cmd_send();
     // this->iter_run++;
     return;
-}
-
-bool StandWorker::is_finished()
-{
-    if (iter_run > 1 + period)
-    {
-        if (!switch_conditon_check)
-        {
-            std::cout << "Stand finished!" << std::endl;
-            // for (int i = 0; i < 4; i++)
-            // {
-            //     std::cout << i << " -------------- " << std::endl;
-            // }
-            data_._legController->motor_enable = 0;
-            switch_conditon_check = true;
-        }
-        return false;
-    }
-    else
-    {
-        return false;
-    }
 }

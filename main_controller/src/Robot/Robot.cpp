@@ -4,6 +4,7 @@ Robot::Robot(double mass_, double len_1, double len_2, double x_offset, double y
     mass = mass_;
     L1 = len_1;
     L2 = len_2;
+    _maxLegLength = L1+L2;
     // each hip frame origin in body frame
     for (int leg_ = 0; leg_ < 4; leg_++)
     {
