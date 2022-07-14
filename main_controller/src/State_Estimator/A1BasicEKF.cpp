@@ -65,7 +65,7 @@ A1BasicEKF::A1BasicEKF(bool assume_flat_ground_)
     }
 }
 
-void A1BasicEKF::init_state(FSM_data &data)
+void A1BasicEKF::init_state(state_data  &state)
 {
     filter_initialized = true;
     P.setIdentity();
@@ -76,22 +76,22 @@ void A1BasicEKF::init_state(FSM_data &data)
     x.segment<3>(0) = Eigen::Vector3d(0, 0, 0.09);
     for (int i = 0; i < NUM_LEG; ++i)
     {
-        Eigen::Vector3d fk_pos = data.state->foot_p_abs.block<3, 1>(0, i);
-        x.segment<3>(6 + i * 3) = data.state->rotate_matrix * fk_pos + x.segment<3>(0);
+        Eigen::Vector3d fk_pos = state.foot_p_abs.block<3, 1>(0, i);
+        x.segment<3>(6 + i * 3) = state.rotate_matrix * fk_pos + x.segment<3>(0);
     }
 }
 
-void A1BasicEKF::update_estimation(FSM_data &data, double dt)
+void A1BasicEKF::update_estimation(state_data  &state, double dt)
 {
     // update A B using latest dt
     A.block<3, 3>(0, 3) = dt * eye3;
     B.block<3, 3>(3, 0) = dt * eye3;
 
     // control input u is Ra + ag
-    Eigen::Vector3d u = data.state->rotate_matrix * data.state->b_acc + Eigen::Vector3d(0, 0, -9.81);
+    Eigen::Vector3d u = state.rotate_matrix * state.b_acc + Eigen::Vector3d(0, 0, -9.81);
 
     // contact estimation, do something very simple first
-    if (data.state->gait_type == quad::STAND)
+    if (state.gait_type == quad::STAND)
     { // stand
         for (int i = 0; i < NUM_LEG; ++i)
             estimated_contacts[i] = 1.0;
@@ -100,8 +100,8 @@ void A1BasicEKF::update_estimation(FSM_data &data, double dt)
     { // walk
         for (int i = 0; i < NUM_LEG; ++i)
         {
-            estimated_contacts[i] = std::min(std::max((data.state->foot_force(i)) / (100.0 - 0.0), 0.0), 1.0);
-            //        estimated_contacts[i] = 1.0/(1.0+std::exp(-(data.state->foot_force(i)-100)));
+            estimated_contacts[i] = std::min(std::max((state.foot_force(i)) / (100.0 - 0.0), 0.0), 1.0);
+            //        estimated_contacts[i] = 1.0/(1.0+std::exp(-(state.foot_force(i)-100)));
         }
     }
     // update Q
@@ -135,11 +135,11 @@ void A1BasicEKF::update_estimation(FSM_data &data, double dt)
     // actual measurement
     for (int i = 0; i < NUM_LEG; ++i)
     {
-        Eigen::Vector3d fk_pos = data.state->foot_p_abs.block<3, 1>(0, i);
-        y.block<3, 1>(i * 3, 0) = data.state->rotate_matrix * fk_pos; // fk estimation
-        Eigen::Vector3d leg_v = -data.state->foot_v_robot.block<3, 1>(0, i) - skew(data.state->b_angle_vel) * fk_pos;
+        Eigen::Vector3d fk_pos = state.foot_p_abs.block<3, 1>(0, i);
+        y.block<3, 1>(i * 3, 0) = state.rotate_matrix * fk_pos; // fk estimation
+        Eigen::Vector3d leg_v = -state.foot_v_robot.block<3, 1>(0, i) - skew(state.b_angle_vel) * fk_pos;
         y.block<3, 1>(NUM_LEG * 3 + i * 3, 0) =
-            (1.0 - estimated_contacts[i]) * x.segment<3>(3) + estimated_contacts[i] * data.state->rotate_matrix * leg_v; // vel estimation
+            (1.0 - estimated_contacts[i]) * x.segment<3>(3) + estimated_contacts[i] * state.rotate_matrix * leg_v; // vel estimation
 
         y(NUM_LEG * 6 + i) =
             (1.0 - estimated_contacts[i]) * (x(2) + fk_pos(2)) + estimated_contacts[i] * 0; // height z estimation
@@ -166,23 +166,23 @@ void A1BasicEKF::update_estimation(FSM_data &data, double dt)
     }
 
     // final step
-    // put estimated values back to A1CtrlStates& data.state
+    // put estimated values back to A1CtrlStates& state
     for (int i = 0; i < NUM_LEG; ++i)
     {
         if (estimated_contacts[i] < 0.5)
         {
-            data.state->estimate_contacts[i] = false;
+            state.estimate_contacts[i] = false;
         }
         else
         {
-            data.state->estimate_contacts[i] = true;
+            state.estimate_contacts[i] = true;
         }
     }
     //    std::cout << x.transpose() <<std::endl;
-    data.state->estimate_position = x.segment<3>(0);
-    data.state->estimate_vel = x.segment<3>(3);
+    state.estimate_position = x.segment<3>(0);
+    state.estimate_vel = x.segment<3>(3);
 
-    data.state->cur_position = x.segment<3>(0);
-    data.state->cur_vel = x.segment<3>(3);
+    state.cur_position = x.segment<3>(0);
+    state.cur_vel = x.segment<3>(3);
     
 }

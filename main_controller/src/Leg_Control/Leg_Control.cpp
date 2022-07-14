@@ -30,7 +30,7 @@ void LegControllerData::zero()
 }
 
 LegController::LegController(){
-
+    
 }
 
 LegController::~LegController()

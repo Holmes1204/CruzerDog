@@ -12,7 +12,7 @@ private:
 public:
     FSM_data &data_;
     FSM_topic_control &tpcl_;
-    int flag_ = 0;
+    bool switch_conditon_check=false;
     int count_;
     double targetPos[12] = {0.0, 0.67, -1.3, -0.0, 0.67, -1.3,
                             0.0, 0.67, -1.3, -0.0, 0.67, -1.3};

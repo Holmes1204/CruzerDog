@@ -8,8 +8,9 @@ private:
 
 public:
     uint32_t iter_run;
-    float iter_time_ms;
-    float init_motor_angle[4][2]={{-1.44121 ,2.87804},{ 1.43246,-2.88679},{-1.44121 ,2.87804},{ 1.43246,-2.88679}};
+    double iter_time_ms;
+    double init_motor_angle[4][2]={{-1.44121 ,2.87804},{ 1.43246,-2.88679},{-1.44121 ,2.87804},{ 1.43246,-2.88679}};
+    bool switch_conditon_check=false;
     FSM_data &data_;
     FSM_topic_control &tpcl_;
     virtual void send();

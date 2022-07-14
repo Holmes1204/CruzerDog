@@ -4,7 +4,7 @@
 
     <node pkg="joy" type="joy_node" name="joy_node" output="screen"></node>
     
-    <node pkg="wtr_serial" type="wtr_serial" name="wtr_serial_node" output="screen"></node>
+    <node pkg="wtr_serial" type="wtr_serial" name="wtr_serial_node" output="log"></node>
 
     <node pkg="main_ctrl" type="main_ctrl" name="main_ctrl_node" output="screen"></node>
     

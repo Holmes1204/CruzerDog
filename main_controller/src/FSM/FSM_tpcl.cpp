@@ -1,6 +1,19 @@
 #include <FSM/FSM_tpcl.h>
 #include <FSM/FSM_data.h>
 
+const double max_torque = 18;
+const double max_vel = 35.0;
+const double thigh_upper= 0.0;
+const double thigh_lower= 0.0;
+const double calf_lower= 0.0;
+const double calf_upper = 0.0;
+
+template<typename T>
+inline T limit(T val_,T lower_bound, T upper_bound){
+        
+        return (val_>lower_bound)?(val_<upper_bound?val_:upper_bound):lower_bound;
+};
+
 FSM_topic_control::FSM_topic_control(ros::NodeHandle &nh, FSM_data &data) : nh_(nh), data_(data)
 {
         this->joy_sub_ = this->joy_sub_ = this->nh_.subscribe("/joy", 2, &FSM_topic_control::Joy_Callback, this);
@@ -17,9 +30,9 @@ FSM_topic_control::~FSM_topic_control()
 void FSM_topic_control::Joy_Callback(const sensor_msgs::Joy &msg)
 {
         //复杂的控制逻辑源于对实现过程的精准把握
-        this->data_.state->command_vel.x() = 0;
-        this->data_.state->command_vel.y() = 0;
-        this->data_.state->command_vel.z() = 0;
+        // this->data_.state->command_vel.x() = 0;
+        // this->data_.state->command_vel.y() = 0;
+        // this->data_.state->command_vel.z() = 0;
         if (msg.buttons[0] == 1 && msg.buttons[1] == 1)
         {
                 this->data_.global_state_switch++;
@@ -28,11 +41,11 @@ void FSM_topic_control::Joy_Callback(const sensor_msgs::Joy &msg)
         {
                 this->data_.global_gait_switch++;
         }
-
         // Debug
         // system("clear");
         // std::cout << "v_x" << msg << std::endl;
 }
+
 // real
 void FSM_topic_control::em_fdb_callback(const wtr_serial_msg::em_fb_raw &msg)
 {
@@ -43,23 +56,18 @@ void FSM_topic_control::em_fdb_callback(const wtr_serial_msg::em_fb_raw &msg)
                 data_._legController->data[leg].q(0) = 0;
                 data_._legController->data[leg].qd(0) = 0;
                 data_._legController->data[leg].tauEstimate(0) = .0;
-                
-                data_._legController->data[leg].q(1) = mt_fdb.em_pos_fb_raw[leg * 2];
-                data_._legController->data[leg].qd(1) = mt_fdb.em_vel_fb_raw[leg * 2];
-                data_._legController->data[leg].tauEstimate(1) = mt_fdb.em_trq_fb_raw[leg * 2];
 
-                data_._legController->data[leg].q(2) = mt_fdb.em_pos_fb_raw[leg * 2 + 1];
-                data_._legController->data[leg].qd(2) = mt_fdb.em_vel_fb_raw[leg * 2 + 1];
-                data_._legController->data[leg].tauEstimate(2) = mt_fdb.em_trq_fb_raw[leg * 2 + 1];
-                // imu的解算之后再加
-                // leg[leg].compute_Jacobian(leg);
-                // leg[leg].get_foot_pos(leg);
-                // leg[leg].get_foot_vel();
-                // debug
-                // std::cout<<"leg"<<leg<<std::endl;
-                // std::cout<<leg[leg].J<<std::endl;
-                // std::cout<<"q "<<leg[leg].q.transpose()<<"\n"<<"d "<<leg[leg].qd.transpose()<<std::endl;
-                // std::cout<<"p "<<leg[leg].p.transpose()<<"\n"<<"v "<<leg[leg].v.transpose()<<std::endl;
+                data_._legController->data[leg].q(1) = msg.em_pos_fb_raw[leg * 2];
+                data_._legController->data[leg].qd(1) = msg.em_vel_fb_raw[leg * 2];
+                data_._legController->data[leg].tauEstimate(1) = msg.em_trq_fb_raw[leg * 2];
+
+                data_._legController->data[leg].q(2) = msg.em_pos_fb_raw[leg * 2 + 1];
+                data_._legController->data[leg].qd(2) = msg.em_vel_fb_raw[leg * 2 + 1];
+                data_._legController->data[leg].tauEstimate(2) = msg.em_trq_fb_raw[leg * 2 + 1];
+
+                data_._legController->data[leg].J = data_._quadruped->cal_jacobian(data_._legController->data[leg].q, leg);
+                data_._legController->data[leg].p = data_._quadruped->forward_kinematic(data_._legController->data[leg].q, leg);
+                data_._legController->data[leg].v = data_._legController->data[leg].J * data_._legController->data[leg].qd;
         }
         return;
 }
@@ -89,19 +97,19 @@ void FSM_topic_control::em_cmd_send()
                     data_._legController->command[leg].kdJoint *
                         (data_._legController->command[leg].qd_Des - data_._legController->data[leg].qd);
 
-                mt_cmd.em_ev_pos[2 * leg] = data_._legController->command[leg].q_Des(1);
+                mt_cmd.em_ev_pos[2 * leg] = limit<double>(data_._legController->command[leg].q_Des(1),-M_PI,M_PI);
                 mt_cmd.em_ev_vel[2 * leg] = data_._legController->command[leg].qd_Des(1);
                 mt_cmd.em_ev_kp[2 * leg] = data_._legController->command[leg].kpJoint(1, 1);
                 mt_cmd.em_ev_kd[2 * leg] = data_._legController->command[leg].kdJoint(1, 1);
                 mt_cmd.em_ev_trq[2 * leg] = legTorque(1);
 
-                mt_cmd.em_ev_pos[2 * leg + 1] = data_._legController->command[leg].q_Des(2);
+                mt_cmd.em_ev_pos[2 * leg + 1] = limit<double>(data_._legController->command[leg].q_Des(2),-M_PI,M_PI);
                 mt_cmd.em_ev_vel[2 * leg + 1] = data_._legController->command[leg].qd_Des(2);
                 mt_cmd.em_ev_kp[2 * leg + 1] = data_._legController->command[leg].kpJoint(2, 2);
                 mt_cmd.em_ev_kd[2 * leg + 1] = data_._legController->command[leg].kdJoint(2, 2);
                 mt_cmd.em_ev_trq[2 * leg + 1] = legTorque(2);
                 // on or off
-                mt_cmd.em_state[0] = 0;
+                mt_cmd.em_state[0] = data_._legController->motor_enable;
                 mt_cmd.em_state[1] = 0;
         }
         em_cmd_pub_.publish(mt_cmd);

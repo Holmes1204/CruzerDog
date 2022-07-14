@@ -20,7 +20,8 @@ int main(int argc, char **argv)
     {
         ros::spinOnce();
         //考虑到unitree topic的特殊情况，不仿直接将要更新的部分放在主循环
-        Finite_State_Machine.topic_contrl.unitree_sim_data_decode();
+        Finite_State_Machine.topic_contrl.em_cmd_send();
+        // Finite_State_Machine.topic_contrl.unitree_sim_data_decode();
         Finite_State_Machine.loop();
         rate.sleep();
     }

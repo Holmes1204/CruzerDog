@@ -20,10 +20,11 @@ void StandWorker::run()
 {
     if (iter_run == 0)
     {
+        data_._legController->motor_enable = 1;
         for (int i = 0; i < 4; i++)
         {
-            f_0[i] = data_._legController->data[i].p; // hip frame
-            // f_0[i] = Vec3<double>(0, 0, -0.1);
+            // f_0[i] = data_._legController->data[i].p; // hip frame
+            f_0[i] = Vec3<double>(0, 0, -0.1);
             f_t[i] = Vec3<double>(0, 0, -0.3);
         }
     }
@@ -31,17 +32,33 @@ void StandWorker::run()
     for (int i = 0; i < 4; i++)
     {
     }
-
-    if (iter_run % 50 == 0)
+    // debug
     {
-
-        // std::cout<<"------------"<<std::endl;
-        // std::cout<<0<<data_.leg[0].p_ref.transpose()<<std::endl;
-        // std::cout<<0<<data_.leg[0].p.transpose()<<std::endl;
-        // std::cout<<0<<data_.leg[0].force.transpose()<<std::endl;
+        static uint32_t dbg_count = 0;
+        if (dbg_count % 40 == 0)
+        {
+            system("clear");
+            for (int i = 0; i < 1; i++)
+            {
+                std::cout << "leg" << i << std::endl;
+                std::cout << "state" << data_._legController->motor_enable << std::endl;
+                std::cout << "J " << std::endl
+                          << data_._legController->data[i].J << std::endl;
+                std::cout << "q " << std::endl
+                          << data_._legController->data[i].q.transpose() << "\n"
+                          << "d " << std::endl
+                          << data_._legController->data[i].qd.transpose() << std::endl;
+                std::cout << "p " << std::endl
+                          << data_._legController->data[i].p.transpose() << "\n"
+                          << "v " << std::endl
+                          << data_._legController->data[i].v.transpose() << std::endl;
+                dbg_count = 0;
+            }
+        }
+        dbg_count++;
     }
     double percent;
-#define period 200u // 2s
+#define period 1600u // 2s
     if (iter_run < period)
     {
         percent = iter_run / double(period);
@@ -54,29 +71,30 @@ void StandWorker::run()
     {
         data_._legController->command[leg].zero();
         data_._legController->command[leg].q_Des = this->data_._quadruped->inverse_kinematic(f_0[leg] * (1 - percent) + f_t[leg] * percent, 0);
-        data_._legController->command[leg].kpJoint(1, 1) = 300;
-        data_._legController->command[leg].kdJoint(1, 1) = 15;
-        data_._legController->command[leg].kpJoint(2, 2) = 300;
-        data_._legController->command[leg].kdJoint(2, 2) = 15;
+        data_._legController->command[leg].kpJoint(1, 1) = 50;
+        data_._legController->command[leg].kdJoint(1, 1) = .5;
+        data_._legController->command[leg].kpJoint(2, 2) = 50;
+        data_._legController->command[leg].kdJoint(2, 2) = .5;
     }
-    // static int diter = -1;
-    // if (iter_run > period)
-    // {
-    //     if (diter > 0)
-    //     {
-    //         diter = -1;
-    //     }
-    // }
-    // else if (iter_run < 1)
-    // {
-    //     if (diter < 0)
-    //     {
-    //         diter = 1;
-    //     }
-    // }
-    // this->iter_run += diter;
-    tpcl_.unitree_sim_send_cmd();
-    this->iter_run++;
+    static int diter = -1;
+    if (iter_run > period)
+    {
+        if (diter > 0)
+        {
+            diter = -1;
+        }
+    }
+    else if (iter_run < 1)
+    {
+        if (diter < 0)
+        {
+            diter = 1;
+        }
+    }
+    this->iter_run += diter;
+    // tpcl_.unitree_sim_send_cmd();
+    tpcl_.em_cmd_send();
+    // this->iter_run++;
     return;
 }
 
@@ -84,12 +102,17 @@ bool StandWorker::is_finished()
 {
     if (iter_run > 1 + period)
     {
-        std::cout << "Stand finished!" << std::endl;
-        // for (int i = 0; i < 4; i++)
-        // {
-        //     std::cout << i << " -------------- " << std::endl;
-        // }
-        return true;
+        if (!switch_conditon_check)
+        {
+            std::cout << "Stand finished!" << std::endl;
+            // for (int i = 0; i < 4; i++)
+            // {
+            //     std::cout << i << " -------------- " << std::endl;
+            // }
+            data_._legController->motor_enable = 0;
+            switch_conditon_check = true;
+        }
+        return false;
     }
     else
     {

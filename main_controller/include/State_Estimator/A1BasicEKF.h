@@ -2,7 +2,7 @@
 #define A1_CPP_A1BASICEKF_H
 #include <defination.h>
 #include <eigen_types.h>
-#include <FSM/FSM_data.h>
+#include "state_estimator.h"
 
 // state estimator parameters
 #define STATE_SIZE 18
@@ -33,7 +33,7 @@ struct StateEstimateResult
     Vec3<double> aBody, aWorld;
 };
 
-class FSM_data;
+class state_data ;
 
 // implement a basic error state KF to estimate robot pose
 // assume orientation is known from a IMU (state.root_rot_mat)
@@ -44,8 +44,8 @@ public:
     A1BasicEKF();
 
     A1BasicEKF(bool assume_flat_ground_);
-    void init_state(FSM_data &data);
-    void update_estimation(FSM_data &data, double dt);
+    void init_state(state_data  &data);
+    void update_estimation(state_data  &data, double dt);
     bool is_inited() { return filter_initialized; }
     StateEstimateResult &getResult() { return this->result; }
     StateEstimateResult result;

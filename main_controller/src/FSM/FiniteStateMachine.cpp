@@ -108,7 +108,7 @@ inline void FSM::Update_MPC()
 // State_Estimator
 inline void FSM::Update_StateEstimate()
 {
-    this->global_data.model_StateEstimate->update_estimation(this->global_data, this->global_data.state->plan_dt);
-    this->global_data.state->cur_vel_b = this->global_data.state->rotate_matrix_z.transpose() * this->global_data.state->cur_vel;
-    this->global_data.state->command_vel_b = this->global_data.state->rotate_matrix_z.transpose() * this->global_data.state->command_vel;
+    // this->global_data.model_StateEstimate->update_estimation(this->global_data, this->global_data.state->plan_dt);
+    // this->global_data.state->cur_vel_b = this->global_data.state->rotate_matrix_z.transpose() * this->global_data.state->cur_vel;
+    // this->global_data.state->command_vel_b = this->global_data.state->rotate_matrix_z.transpose() * this->global_data.state->command_vel;
 }

@@ -16,6 +16,7 @@ SteadyWorker::~SteadyWorker()
 //不会一直卡在一个run中运行
 void SteadyWorker::run()
 {
+    //check all state
     this->iter_run++;
     return;
 }
@@ -26,18 +27,23 @@ void SteadyWorker::send()
 
 bool SteadyWorker::is_finished()
 {
-    if (iter_run > 100)
+    if (iter_run > 800)
     {
-        for (int i = 0; i < 4; i++)
+        if (!switch_conditon_check)
         {
-            std::cout <<"leg"<< i << " -------------- " << std::endl;
-            std::cout << "q" << std::endl
-                      << data_._legController->data[i].q.transpose() << std::endl
-                      << "p" << std::endl
-                      << data_._legController->data[i].p.transpose()
+            for (int i = 0; i < 4; i++)
+            {
+                std::cout << "leg" << i << " -------------- " << std::endl;
+                std::cout << "q" << std::endl
+                          << data_._legController->data[i].q.transpose() << std::endl
+                          << "p" << std::endl
+                          << data_._legController->data[i].p.transpose()
+                          << std::endl;
+            }
+            std::cout << "Steady State Over!\n"
                       << std::endl;
+            switch_conditon_check =true;
         }
-        std::cout << "Steady State Over!\n"<< std::endl;
         return true;
     }
     else
