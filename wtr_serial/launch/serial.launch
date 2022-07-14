@@ -1,0 +1,5 @@
+<launch>
+  <node  name="serial_node"          pkg="wtr_serial"  type="node" output="screen">
+  <param name="serial_port"         type="string" value="/dev/ttyUSB0"/>  
+  <param name="serial_baudrate"     type="int"    value="115200"/></node>
+</launch>

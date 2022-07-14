@@ -6,7 +6,7 @@ int main(int argc, char **argv)
 
     ros::init(argc, argv, "demo");
     ros::NodeHandle nh;
-    ros::Rate rate(100); // Hz
+    ros::Rate rate(800); // Hz
     FSM Finite_State_Machine(nh);
     // ros::AsyncSpinner spinner(12);
     Finite_State_Machine.build_ScheduleTable(

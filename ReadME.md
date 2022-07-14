@@ -8,3 +8,8 @@
 **date 7/11 V2.1**
 
 1.验证jacobian,forward，inverse部分，实现纯位置控制
+
+
+**date 7/13 V2.2**
+
+1.增加实际控制模块

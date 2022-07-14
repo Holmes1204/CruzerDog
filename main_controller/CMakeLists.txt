@@ -18,6 +18,16 @@ find_package(Eigen3 REQUIRED)
 find_package(OsqpEigen REQUIRED)
 find_package(osqp REQUIRED)
 
+catkin_package(
+    CATKIN_DEPENDS
+    unitree_legged_msgs
+    wtr_serial_msg
+    roscpp
+    INCLUDE_DIRS include
+    LIBRARIES ${PROJECT_NAME}
+)
+
+
 include_directories(
         # /usr/include/eigen3/
         # /usr/local/include/osqp/
@@ -48,6 +58,8 @@ add_executable(
         src/State_Estimator/state_estimator.cpp
         src/State_Estimator/A1BasicEKF.cpp
         )
+        
+add_dependencies(${PROJECT_NAME} unitree_legged_msgs_gencpp)
 
 target_link_libraries(
         main_ctrl

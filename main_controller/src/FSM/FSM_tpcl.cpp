@@ -42,13 +42,15 @@ void FSM_topic_control::em_fdb_callback(const wtr_serial_msg::em_fb_raw &msg)
                 //未考虑电机开始时的偏置，之后添加
                 data_._legController->data[leg].q(0) = 0;
                 data_._legController->data[leg].qd(0) = 0;
-
+                data_._legController->data[leg].tauEstimate(0) = .0;
+                
                 data_._legController->data[leg].q(1) = mt_fdb.em_pos_fb_raw[leg * 2];
                 data_._legController->data[leg].qd(1) = mt_fdb.em_vel_fb_raw[leg * 2];
+                data_._legController->data[leg].tauEstimate(1) = mt_fdb.em_trq_fb_raw[leg * 2];
 
                 data_._legController->data[leg].q(2) = mt_fdb.em_pos_fb_raw[leg * 2 + 1];
                 data_._legController->data[leg].qd(2) = mt_fdb.em_vel_fb_raw[leg * 2 + 1];
-
+                data_._legController->data[leg].tauEstimate(2) = mt_fdb.em_trq_fb_raw[leg * 2 + 1];
                 // imu的解算之后再加
                 // leg[leg].compute_Jacobian(leg);
                 // leg[leg].get_foot_pos(leg);
