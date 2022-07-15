@@ -3,12 +3,12 @@
 Locomotion::Locomotion(FSM_data *data)
 	: FSM_State(data, FSM_StateName::LOCOMOTION, "Locomotion"),
 	  horizonLength(10),
-	  dt(0.002),
-	  iterationsBetweenMPC(10),
+	  dt(quad::dt),
+	  iterationsBetweenMPC(quad::horizon),
 	  trotting(horizonLength, Vec4<int>(0, 2, 5, 7), Vec4<int>(5, 5, 5, 5), "Trotting")
 {
 	dtMPC = dt * iterationsBetweenMPC;
-	mpc_solver = new MPC_SLOVER(1, dtMPC);
+	mpc_solver = new MPC_SLOVER(horizonLength, dtMPC);
 	// std::cout << "locomotion initial" << std::endl;
 	// file.open("path.csv");
 	// Initialize GRF and footstep locations to 0s
@@ -406,21 +406,20 @@ void Locomotion::updateMPCIfNeeded(int *mpcTable)
 
 			world_position_desired[0] = xStart;
 			world_position_desired[1] = yStart;
-
+			//这个是期望而已，实际的反馈也是要有的
 			double trajInitial[12] = {
-				0,		  // 0
-				0,		  // 1
-				_yaw_des, // 2
-				// yawStart,    // 2
-				xStart,				  // 3
-				yStart,				  // 4
-				(double)_body_height, // 5
-				0,					  // 6
-				0,					  // 7
-				_yaw_turn_rate,		  // 8
-				v_des_world[0],		  // 9
-				v_des_world[1],		  // 10
-				0};					  // 11
+				0,		  			  	// 0 roll
+				0,		  				// 1 pitch 
+				0, 		  			  	// 2 yaw       系数为0
+				xStart,				  	// 3 x
+				0,				  		// 4 y			系数为0
+				(double)_body_height, 	// 5 z
+				0,					  	// 6 roll  rate 
+				0,					  	// 7 pitch rate 
+				0,		  				// 8  yaw rate     系数为0
+				v_des_world[0],		  	// 9 vx
+				0,		  			  	// 10 vy 			系数为0
+				0};					  	// 11 vz
 
 			for (int i = 0; i < horizonLength; i++)
 			{
@@ -442,6 +441,7 @@ void Locomotion::updateMPCIfNeeded(int *mpcTable)
 			}
 		}
 		// MPC_calculate here
+		// 这里是反馈
 		mpc_solver->solve_mpc(seResult.rpy(2), x_0, r_foot_world, mpcTable, trajAll, Fr_des);
 	}
 }

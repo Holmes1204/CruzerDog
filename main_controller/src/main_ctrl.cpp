@@ -5,9 +5,9 @@ int main(int argc, char **argv)
 {
     ros::init(argc, argv, "main_ctrl");
     FSM_ctrl FSM;
-    ros::Rate rate(800); // Hz
+    ros::Rate rate(quad::df); // Hz
     // spinner.start();
-    //控制频率400hz
+    //控制频率500hz
     while (ros::ok())
     {
         ros::spinOnce();

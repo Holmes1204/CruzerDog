@@ -21,7 +21,6 @@ public:
     MPC_SLOVER *mpc_solver;
     int iterationsBetweenMPC;
     int horizonLength;
-    int default_iterations_between_mpc;
     double dt;
     double dtMPC;
     int iterationCounter = 0;
