@@ -4,7 +4,10 @@
 #include <defination.h>
 #include <FSM/FSM_data.h>
 using namespace quad;
-
+#define NUM_LEG 4
+#define MPC_STATE_DIM 13
+#define NUM_DOF 8
+#define PLAN_HORIZON 10
 class state_data
 {
 public:
@@ -162,8 +165,8 @@ public:
     /*!
      * Get the position and velocity
      * */
-    void LinearKF(Eigen::Matrix<double, 3, quad::NUM_LEG> _foot_p, Eigen::Matrix<double, 3, 
-                quad::NUM_LEG> _foot_v, Eigen::Vector4d _contact_phase);
+    void LinearKF(Eigen::Matrix<double, 3, NUM_LEG> _foot_p, Eigen::Matrix<double, 3, 
+                NUM_LEG> _foot_v, Eigen::Vector4d _contact_phase);
     /*!
      * @return : the position of body
      * */

@@ -91,7 +91,7 @@ void A1BasicEKF::update_estimation(state_data  &state, double dt)
     Eigen::Vector3d u = state.rotate_matrix * state.b_acc + Eigen::Vector3d(0, 0, -9.81);
 
     // contact estimation, do something very simple first
-    if (state.gait_type == quad::STAND)
+    if (state.gait_type == STAND)
     { // stand
         for (int i = 0; i < NUM_LEG; ++i)
             estimated_contacts[i] = 1.0;

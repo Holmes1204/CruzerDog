@@ -68,7 +68,7 @@ void StateEstimate::InitParameters()
 /*!
  * Get the position and velocity
  * */
-void StateEstimate::LinearKF(Eigen::Matrix<double, 3, quad::NUM_LEG> _foot_p, Eigen::Matrix<double, 3, quad::NUM_LEG> _foot_v, Eigen::Vector4d _contact_phase)
+void StateEstimate::LinearKF(Eigen::Matrix<double, 3, NUM_LEG> _foot_p, Eigen::Matrix<double, 3, NUM_LEG> _foot_v, Eigen::Vector4d _contact_phase)
 {
     Eigen::Matrix<double, 18, 18> Q = Eigen::Matrix<double, 18, 18>::Identity();
     Q.block(0, 0, 3, 3) = _Q0.block(0, 0, 3, 3) * this->imu_process_noise_position;
