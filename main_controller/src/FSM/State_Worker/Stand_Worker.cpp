@@ -9,31 +9,34 @@ StandWorker::StandWorker(FSM_data *data)
 
 StandWorker::~StandWorker()
 {
-
 }
 
 void StandWorker::onExit()
 {
-    std::cout<<"steady finished!"<<std::endl;
+
+    std::cout << "steady finished!" << std::endl;
 }
 
 void StandWorker::onEnter()
-{
-    std::cout<<"stand start!"<<std::endl;
+{    
+    iter_run = 0;
+    std::cout << "stand start!" << std::endl;
 }
 
 FSM_StateName StandWorker::checkTransition()
 {
 
-    if (1)
+    if (data_->global_state_switch)
     {
+        data_->global_state_switch = 0;
+        std::cout << stateString << " to "
+                  << "Locomotion" << std::endl;
         return FSM_StateName::LOCOMOTION;
-    }else
-    {
-        return FSM_StateName::STEADY;
     }
-    
-
+    else
+    {
+        return FSM_StateName::STAND_UP;
+    }
 }
 
 // Runs the transition behaviors and returns true when done transitioning
@@ -50,9 +53,9 @@ void StandWorker::run()
         data_->_legController->motor_enable = 1;
         for (int i = 0; i < 4; i++)
         {
-            // f_0[i] = data_->_legController->data[i].p; // hip frame
-            f_0[i] = Vec3<double>(0, 0, -0.1);
-            f_t[i] = Vec3<double>(0, 0, -0.3);
+            f_0[i] = data_->_legController->data[i].p; // hip frame
+            // f_0[i] = Vec3<double>(0, 0, -0.1);
+            f_t[i] = Vec3<double>(0, 0, -0.1);
         }
     }
 
@@ -65,7 +68,7 @@ void StandWorker::run()
         if (dbg_count % 40 == 0)
         {
             system("clear");
-            for (int i = 0; i < 1; i++)
+            for (int i = 0; i < 4; i++)
             {
                 std::cout << "leg" << i << std::endl;
                 std::cout << "state" << data_->_legController->motor_enable << std::endl;
@@ -85,7 +88,7 @@ void StandWorker::run()
         dbg_count++;
     }
     double percent;
-#define period 1600u // 2s
+#define period 500u // 1s
     if (iter_run < period)
     {
         percent = iter_run / double(period);
@@ -103,22 +106,22 @@ void StandWorker::run()
         data_->_legController->command[leg].kpJoint(2, 2) = 50;
         data_->_legController->command[leg].kdJoint(2, 2) = .5;
     }
-    static int diter = -1;
-    if (iter_run > period)
-    {
-        if (diter > 0)
-        {
-            diter = -1;
-        }
-    }
-    else if (iter_run < 1)
-    {
-        if (diter < 0)
-        {
-            diter = 1;
-        }
-    }
-    this->iter_run += diter;
-    // this->iter_run++;
+    // static int diter = -1;
+    // if (iter_run > period)
+    // {
+    //     if (diter > 0)
+    //     {
+    //         diter = -1;
+    //     }
+    // }
+    // else if (iter_run < 1)
+    // {
+    //     if (diter < 0)
+    //     {
+    //         diter = 1;
+    //     }
+    // }
+    // this->iter_run += diter;
+    this->iter_run++;
     return;
 }

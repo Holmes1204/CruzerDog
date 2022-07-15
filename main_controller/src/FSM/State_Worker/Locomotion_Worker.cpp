@@ -9,6 +9,7 @@ Locomotion::Locomotion(FSM_data *data)
 {
 	dtMPC = dt * iterationsBetweenMPC;
 	mpc_solver = new MPC_SLOVER(horizonLength, dtMPC);
+	std::cout << "dt: " << dt << " dtMPC: " << dtMPC << " horizon: " << horizonLength << std::endl;
 	// std::cout << "locomotion initial" << std::endl;
 	// file.open("path.csv");
 	// Initialize GRF and footstep locations to 0s
@@ -84,7 +85,17 @@ void Locomotion::onEnter()
 
 FSM_StateName Locomotion::checkTransition()
 {
-	return FSM_StateName::LOCOMOTION;
+	if (data_->global_state_switch)
+	{
+		data_->global_state_switch = 0;
+		std::cout << stateString << " to "
+				  << "STEADY" << std::endl;
+		return FSM_StateName::STEADY;
+	}
+	else
+	{
+		return FSM_StateName::LOCOMOTION;
+	}
 }
 
 // Runs the transition behaviors and returns true when done transitioning
@@ -244,14 +255,14 @@ void Locomotion::b_run()
 	iterationCounter++;
 
 	//此时stance的kp为零，不会因为位置的关系影响脚的回收工作，这个地方的PID要改
-	Kp << 300, 0, 0,
-		0, 300, 0,
-		0, 0, 300;
+	Kp << 50, 0, 0,
+		0, 50, 0,
+		0, 0, 50;
 	Kp_stance = 0 * Kp;
 
-	Kd << 15, 0, 0,
-		0, 15, 0,
-		0, 0, 15;
+	Kd << .5, 0, 0,
+		0, .5, 0,
+		0, 0, .5;
 	Kd_stance = Kd;
 	// gait
 
@@ -273,7 +284,7 @@ void Locomotion::b_run()
 			if (firstSwing[foot])
 			{
 				firstSwing[foot] = false;
-				Vec3<double> p_init = Vec3<double>(0, 0, -0.3);
+				Vec3<double> p_init = pFoot[foot];//Vec3<double>(0, 0, -0.3);
 				footSwingTrajectories[foot].setInitialPosition(p_init);
 			}
 			footSwingTrajectories[foot].computeSwingTrajectoryBezier(swingState, swingTimes[foot]);
@@ -324,31 +335,31 @@ void Locomotion::b_run()
 		}
 
 		// debug
-		// {
+		{
 
-		// 	static uint32_t dbg_count = 0;
-		// 	static int i = 0;
-		// 	if (dbg_count % 20 == 0)
-		// 	{
-		// 		system("clear");
-		// 		std::cout
-		// 			<< "q_Des_0" << std::endl
-		// 			<< data_->_legController->command[0].q_Des.transpose() << std::endl
-		// 			<< "q_Des_1" << std::endl
-		// 			<< data_->_legController->command[1].q_Des.transpose() << std::endl
-		// 			<< "q_Des_2" << std::endl
-		// 			<< data_->_legController->command[2].q_Des.transpose() << std::endl
-		// 			<< "q_Des_3" << std::endl
-		// 			<< data_->_legController->command[foot].q_Des.transpose() << std::endl
-		// 			// << "p" << std::endl
-		// 			// << data_->_legController->command[foot].p_Des.transpose() << std::endl
-		// 			<< std::endl;
-		// 		dbg_count = 0;
-		// 	}
-		// 	dbg_count++;
-		// 	// file << data_->_legController->command[i].p_Des.transpose() << std::endl;
-		// 	// file << data_->_legController->data[i].p.transpose() << std::endl;
-		// }
+			static uint32_t dbg_count = 0;
+			static int i = 0;
+			if (dbg_count % 20 == 0)
+			{
+				system("clear");
+				std::cout
+					<< "swint_time_all" << std::endl
+					<< swingTimes[0] << std::endl
+					<< "swint_time_0" << std::endl
+					<< swingTimeRemaining[0] << std::endl
+					<< "dt" << std::endl
+					<< dt << std::endl
+					<< "dtMPC" << std::endl
+					<< dtMPC << std::endl
+					// << "p" << std::endl
+					// << data_->_legController->command[foot].p_Des.transpose() << std::endl
+					<< std::endl;
+				dbg_count = 0;
+			}
+			dbg_count++;
+			// file << data_->_legController->command[i].p_Des.transpose() << std::endl;
+			// file << data_->_legController->data[i].p.transpose() << std::endl;
+		}
 	}
 }
 
@@ -408,18 +419,18 @@ void Locomotion::updateMPCIfNeeded(int *mpcTable)
 			world_position_desired[1] = yStart;
 			//这个是期望而已，实际的反馈也是要有的
 			double trajInitial[12] = {
-				0,		  			  	// 0 roll
-				0,		  				// 1 pitch 
-				0, 		  			  	// 2 yaw       系数为0
-				xStart,				  	// 3 x
-				0,				  		// 4 y			系数为0
-				(double)_body_height, 	// 5 z
-				0,					  	// 6 roll  rate 
-				0,					  	// 7 pitch rate 
-				0,		  				// 8  yaw rate     系数为0
-				v_des_world[0],		  	// 9 vx
-				0,		  			  	// 10 vy 			系数为0
-				0};					  	// 11 vz
+				0,					  // 0 roll
+				0,					  // 1 pitch
+				0,					  // 2 yaw       系数为0
+				xStart,				  // 3 x
+				0,					  // 4 y			系数为0
+				(double)_body_height, // 5 z
+				0,					  // 6 roll  rate
+				0,					  // 7 pitch rate
+				0,					  // 8  yaw rate     系数为0
+				v_des_world[0],		  // 9 vx
+				0,					  // 10 vy 			系数为0
+				0};					  // 11 vz
 
 			for (int i = 0; i < horizonLength; i++)
 			{

@@ -52,19 +52,19 @@ void FSM_topic_control::em_fdb_callback(const wtr_serial_msg::em_fb_raw &msg)
         // std::cout<<"--------------------\n";
         for (int leg = 0; leg < 4; leg++)
         {
-                //未考虑电机开始时的偏置，之后添加
                 data_._legController->data[leg].q(0) = 0;
                 data_._legController->data[leg].qd(0) = 0;
-                data_._legController->data[leg].tauEstimate(0) = .0;
+                data_._legController->data[leg].tauEstimate(0) = 0.0;
 
-                data_._legController->data[leg].q(1) = msg.em_pos_fb_raw[leg * 2];
-                data_._legController->data[leg].qd(1) = msg.em_vel_fb_raw[leg * 2];
-                data_._legController->data[leg].tauEstimate(1) = msg.em_trq_fb_raw[leg * 2];
+                data_._legController->motor_data[leg].q(1) = msg.em_pos_fb_raw[leg * 2];
+                data_._legController->motor_data[leg].qd(1) = msg.em_vel_fb_raw[leg * 2];
+                data_._legController->motor_data[leg].tau(1) = msg.em_trq_fb_raw[leg * 2];
 
-                data_._legController->data[leg].q(2) = msg.em_pos_fb_raw[leg * 2 + 1];
-                data_._legController->data[leg].qd(2) = msg.em_vel_fb_raw[leg * 2 + 1];
-                data_._legController->data[leg].tauEstimate(2) = msg.em_trq_fb_raw[leg * 2 + 1];
+                data_._legController->motor_data[leg].q(2) = msg.em_pos_fb_raw[leg * 2 + 1];
+                data_._legController->motor_data[leg].qd(2) = msg.em_vel_fb_raw[leg * 2 + 1];
+                data_._legController->motor_data[leg].tau(2) = msg.em_trq_fb_raw[leg * 2 + 1];
 
+                data_._legController->convert_motor_data(leg); //增加偏置和转轴对电机的影响
                 data_._legController->data[leg].J = data_._quadruped->cal_jacobian(data_._legController->data[leg].q, leg);
                 data_._legController->data[leg].p = data_._quadruped->forward_kinematic(data_._legController->data[leg].q, leg);
                 data_._legController->data[leg].v = data_._legController->data[leg].J * data_._legController->data[leg].qd;
@@ -96,18 +96,21 @@ void FSM_topic_control::em_cmd_send()
                         (data_._legController->command[leg].q_Des - data_._legController->data[leg].q) +
                     data_._legController->command[leg].kdJoint *
                         (data_._legController->command[leg].qd_Des - data_._legController->data[leg].qd);
+                //用于cmd解算
+                data_._legController->command[leg].tau_FF = legTorque;
 
-                mt_cmd.em_ev_pos[2 * leg] = limit<double>(data_._legController->command[leg].q_Des(1),-M_PI,M_PI);
-                mt_cmd.em_ev_vel[2 * leg] = data_._legController->command[leg].qd_Des(1);
-                mt_cmd.em_ev_kp[2 * leg] = data_._legController->command[leg].kpJoint(1, 1);
-                mt_cmd.em_ev_kd[2 * leg] = data_._legController->command[leg].kdJoint(1, 1);
-                mt_cmd.em_ev_trq[2 * leg] = legTorque(1);
+                data_._legController->convert_motor_cmd(leg);//考虑电机偏置和转轴的影响
+                mt_cmd.em_ev_pos[2 * leg] = limit<double>(data_._legController->motor_cmd[leg].q_Des(1),-M_PI,M_PI);
+                mt_cmd.em_ev_vel[2 * leg] =data_._legController->motor_cmd[leg].qd_Des(1);
+                mt_cmd.em_ev_kp[2 * leg] = data_._legController->motor_cmd[leg].kp(1);
+                mt_cmd.em_ev_kd[2 * leg] = data_._legController->motor_cmd[leg].kd(1);
+                mt_cmd.em_ev_trq[2 * leg] = data_._legController->motor_cmd[leg].tau_FF(1);
 
-                mt_cmd.em_ev_pos[2 * leg + 1] = limit<double>(data_._legController->command[leg].q_Des(2),-M_PI,M_PI);
-                mt_cmd.em_ev_vel[2 * leg + 1] = data_._legController->command[leg].qd_Des(2);
-                mt_cmd.em_ev_kp[2 * leg + 1] = data_._legController->command[leg].kpJoint(2, 2);
-                mt_cmd.em_ev_kd[2 * leg + 1] = data_._legController->command[leg].kdJoint(2, 2);
-                mt_cmd.em_ev_trq[2 * leg + 1] = legTorque(2);
+                mt_cmd.em_ev_pos[2 * leg + 1] = limit<double>(data_._legController->motor_cmd[leg].q_Des(2),-M_PI,M_PI);
+                mt_cmd.em_ev_vel[2 * leg + 1] = data_._legController->motor_cmd[leg].qd_Des(2);
+                mt_cmd.em_ev_kp[2 * leg + 1] = data_._legController->motor_cmd[leg].kp(1);
+                mt_cmd.em_ev_kd[2 * leg + 1] = data_._legController->motor_cmd[leg].kd(2);
+                mt_cmd.em_ev_trq[2 * leg + 1] = data_._legController->motor_cmd[leg].tau_FF(2);
                 // on or off
                 mt_cmd.em_state[0] = data_._legController->motor_enable;
                 mt_cmd.em_state[1] = 0;
