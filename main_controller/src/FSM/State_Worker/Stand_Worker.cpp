@@ -5,6 +5,7 @@ StandWorker::StandWorker(FSM_data *data)
 {
     this->iter_run = 0;
     this->iter_time_ms = 0.0f;
+    turnOnAllSafetyChecks();
 }
 
 StandWorker::~StandWorker()
@@ -55,13 +56,10 @@ void StandWorker::run()
         {
             f_0[i] = data_->_legController->data[i].p; // hip frame
             // f_0[i] = Vec3<double>(0, 0, -0.1);
-            f_t[i] = Vec3<double>(0, 0, -0.1);
+            f_t[i] = Vec3<double>(0, 0, -0.3);
         }
     }
 
-    for (int i = 0; i < 4; i++)
-    {
-    }
     // debug
     {
         static uint32_t dbg_count = 0;

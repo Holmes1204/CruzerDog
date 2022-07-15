@@ -33,6 +33,7 @@ void FSM_State::turnOnAllSafetyChecks()
     // Pre controls safety checks
     checkSafeOrientation = true; // check roll and pitch
     // Post control safety checks
+    checkQDes = true;
     checkPDesFoot = true;         // do not command footsetps too far
     checkForceFeedForward = true; // do not command huge forces
     checkLegSingularity = true;   // do not let leg
@@ -46,6 +47,7 @@ void FSM_State::turnOffAllSafetyChecks()
     // Pre controls safety checks
     checkSafeOrientation = false; // check roll and pitch
     // Post control safety checks
+    checkQDes = false;
     checkPDesFoot = false;         // do not command footsetps too far
     checkForceFeedForward = false; // do not command huge forces
     checkLegSingularity = false;   // do not let leg

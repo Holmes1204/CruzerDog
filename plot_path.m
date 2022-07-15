@@ -1,4 +1,4 @@
-data = importdata("path_2.csv");
+data = importdata("path.csv");
 size(data);
 % p = data(1:2:end,:);
 % v = data(2:2:end,:);
@@ -35,4 +35,7 @@ hold on
 plot(2:l,p(2:l,3));
 grid on
 legend(["pdes_z","p_z"])
+
+
+
 

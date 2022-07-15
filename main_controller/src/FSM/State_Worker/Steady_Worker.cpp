@@ -25,7 +25,7 @@ void SteadyWorker::run()
 {
 
     data_->_legController->motor_enable = 0;
-    // // debug
+    // debug
     {
         static uint32_t dbg_count = 0;
 
@@ -34,8 +34,12 @@ void SteadyWorker::run()
             system("clear");
             for (int fsd = 0; fsd < 4; fsd++)
             {
-                std::cout << "pos" << fsd << std::endl
+                std::cout << "q motor raw " << fsd << std::endl
                           << data_->_legController->motor_data[fsd].q.transpose() << std::endl
+                          << "q robot" << std::endl
+                          << data_->_legController->data[fsd].q.transpose() << std::endl
+                          << "p robot" << std::endl
+                          << data_->_legController->data[fsd].p.transpose() << std::endl
                           << std::endl;
             }
             if (init_angle)
@@ -57,7 +61,9 @@ void SteadyWorker::run()
             init_angle = true;
             for (int i = 0; i < 4; i++)
             {
-                data_->_legController->set_offset(data_->_legController->motor_data[i].q, i);
+                Vec3<double> temp;
+                temp = data_->_legController->motor_data[i].q - data_->_legController->direction[i]  * data_->_quadruped->inverse_kinematic(Vec3<double>(0,0,-0.2),i);
+                data_->_legController->set_offset(temp,i);
             }
         }
     }

@@ -12,8 +12,8 @@ private:
 public:
     bool switch_conditon_check = false;
     int count_;
-    double targetPos[12] = {0.0, 0.67, -1.3, -0.0, 0.67, -1.3,
-                            0.0, 0.67, -1.3, -0.0, 0.67, -1.3};
+    // double targetPos[12] = {0.0, 0.67, -1.3, -0.0, 0.67, -1.3,
+    //                         0.0, 0.67, -1.3, -0.0, 0.67, -1.3};
 
     uint32_t iter_run;
     float iter_time_ms;

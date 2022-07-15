@@ -109,6 +109,7 @@ public:
     // Post control safety checks
     bool checkSafeOrientation = false; // check roll and pitch
     bool checkPDesFoot = false;         // do not command footsetps too far
+    bool checkQDes = false;
     bool checkForceFeedForward = false; // do not command huge forces
     bool checkLegSingularity = false;   // do not let leg
 

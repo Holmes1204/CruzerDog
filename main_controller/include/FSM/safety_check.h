@@ -16,12 +16,11 @@ class SafetyChecker {
 
   // Pre checks to make sure controls are safe to run
   bool checkSafeOrientation();  // robot's orientation is safe to control
-
   // Post checks to make sure controls can be sent to robot
   bool checkPDesFoot();          // desired foot position is not too far
+  bool checkQDesFoot();          // desired motor position is not too far
   bool checkForceFeedForward();  // desired feedforward forces are not too large
 
-  // Stores the data from the ControlFSM
   FSM_data* data;
  private:
 };

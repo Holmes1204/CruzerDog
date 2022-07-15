@@ -156,17 +156,19 @@ FSM_OperatingMode FSM_ctrl::safetyPreCheck()
 FSM_OperatingMode FSM_ctrl::safetyPostCheck()
 {
     // Check for safe desired foot positions
+    // if (currentState->checkPDesFoot)
+    // {
+    //     safetyChecker->checkPDesFoot();
+    // }
     if (currentState->checkPDesFoot)
     {
-        safetyChecker->checkPDesFoot();
+        safetyChecker->checkQDesFoot();
     }
-    // 仍需要check for joint position
-
     // Check for safe desired feedforward forces
-    if (currentState->checkForceFeedForward)
-    {
-        safetyChecker->checkForceFeedForward();
-    }
+    // if (currentState->checkForceFeedForward)
+    // {
+    //     safetyChecker->checkForceFeedForward();
+    // }
     // Default is to return the current operating mode
     return operatingMode;
 }
