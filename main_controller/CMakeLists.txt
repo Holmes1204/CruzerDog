@@ -62,7 +62,7 @@ add_executable(
         src/State_Estimator/A1BasicEKF.cpp
         )
         
-add_dependencies(${PROJECT_NAME} unitree_legged_msgs_gencpp)
+# add_dependencies(${PROJECT_NAME} unitree_legged_msgs_gencpp)
 
 target_link_libraries(
         main_ctrl

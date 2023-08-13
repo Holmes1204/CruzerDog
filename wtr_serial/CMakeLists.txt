@@ -34,6 +34,6 @@ set(THIRD_PARTY_LIBS
 
 add_executable(wtr_serial  src/wtr_serial.cpp)
 
-add_dependencies(${PROJECT_NAME} wtr_serial_msg_gencpp)
+# add_dependencies(${PROJECT_NAME} wtr_serial_msg)
 
 target_link_libraries(wtr_serial ${THIRD_PARTY_LIBS})
